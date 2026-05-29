@@ -1,0 +1,340 @@
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { getBooksByStatus, addBook, deleteBook, startBook, getTableCount, getAllBookTitles } from '../db/db'
+import { createPortal } from 'react-dom'
+
+const TILE_COLOURS = [
+    'rgba(232,104,42,0.6)', 'rgba(99,102,241,0.6)', 'rgba(20,184,166,0.6)',
+    'rgba(236,72,153,0.6)', 'rgba(234,179,8,0.6)', 'rgba(34,197,94,0.6)'
+]
+
+function CoverTile({ title, size = 'md' }) {
+    const idx = title.charCodeAt(0) % TILE_COLOURS.length
+    const sizes = { sm: 'w-8 h-11 text-xs', md: 'w-12 h-16 text-sm', lg: 'w-20 h-28 text-xl' }
+    return (
+        <div className={`${sizes[size]} rounded-lg flex items-center justify-center font-bold text-white shrink-0`}
+             style={{ background: TILE_COLOURS[idx] }}>
+            {title.charAt(0).toUpperCase()}
+        </div>
+    )
+}
+
+function Shelf() {
+    const [books, setBooks] = useState([])
+    const [searchQuery, setSearchQuery] = useState('')
+    const [searchResults, setSearchResults] = useState([])
+    const [searching, setSearching] = useState(false)
+    const [showModal, setShowModal] = useState(false)
+    const [filterQuery, setFilterQuery] = useState('')
+    const [startModal, setStartModal] = useState(null)
+    const [startDate, setStartDate] = useState(today())
+    const [selectedBooks, setSelectedBooks] = useState([])
+    const [existingTitles, setExistingTitles] = useState([])
+    const navigate = useNavigate()
+
+    function today() {
+        return new Date().toISOString().split('T')[0]
+    }
+
+    async function loadBooks() {
+        const rows = await getBooksByStatus('Shelf')
+        setBooks(rows)
+    }
+
+    useEffect(() => { loadBooks() }, [])
+
+    async function handleSearch() {
+        if (!searchQuery.trim()) return
+        setSearching(true)
+        setSelectedBooks([])
+        const titles = await getAllBookTitles()
+        setExistingTitles(titles)
+        try {
+            const res = await fetch(
+                `https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}&limit=10&fields=key,title,author_name,number_of_pages_median,subject,cover_i,first_publish_year`
+            )
+            const data = await res.json()
+            setSearchResults(data.docs || [])
+        } catch (e) {
+            alert('Search failed. Please try again.')
+        }
+        setSearching(false)
+    }
+
+    function toggleSelect(result) {
+        setSelectedBooks(prev => {
+            const exists = prev.find(b => b.key === result.key)
+            if (exists) return prev.filter(b => b.key !== result.key)
+            return [...prev, result]
+        })
+    }
+
+    function isSelected(result) {
+        return selectedBooks.some(b => b.key === result.key)
+    }
+
+    async function handleAddSelected() {
+        for (const result of selectedBooks) {
+            await addBook({
+                title: result.title || 'Unknown Title',
+                author: result.author_name?.[0] || 'Unknown Author',
+                page_count: result.number_of_pages_median || null,
+                genre: result.subject?.[0] || null,
+                cover_i: result.cover_i || null,
+                roll_eligible: true,
+                is_unreleased: false,
+                is_standalone: true,
+            })
+        }
+        setShowModal(false)
+        setSearchQuery('')
+        setSearchResults([])
+        setSelectedBooks([])
+        loadBooks()
+    }
+
+    async function handleDelete(id) {
+        if (confirm('Remove this book from your shelf?')) {
+            await deleteBook(id)
+            loadBooks()
+        }
+    }
+
+    async function handleStartReading(book) {
+        const tableCount = await getTableCount()
+        if (tableCount >= 1) {
+            alert('You already have a book on The Table! Finish it before starting a new one.')
+            return
+        }
+        setStartModal(book)
+        setStartDate(today())
+    }
+
+    async function confirmStart() {
+        await startBook(startModal.id, startDate)
+        setStartModal(null)
+        navigate('/table')
+    }
+
+    const filteredBooks = books.filter(b =>
+        b.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
+        b.author.toLowerCase().includes(filterQuery.toLowerCase())
+    )
+
+    return (
+        <div className="space-y-4 relative">
+            <h1 className="text-2xl font-bold text-white mb-4">The Shelf</h1>
+
+            <div className="relative">
+                <span className="absolute left-3 top-2.5 text-white/30 text-sm">🔍</span>
+                <input
+                    className="w-full rounded-xl pl-8 pr-4 py-2.5 text-sm text-white placeholder-white/30 outline-none"
+                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    placeholder="Search your shelf..."
+                    value={filterQuery}
+                    onChange={e => setFilterQuery(e.target.value)}
+                />
+            </div>
+
+            <div className="flex gap-3">
+                <button
+                    onClick={() => setShowModal(true)}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
+                    style={{ background: '#E8682A' }}
+                >
+                    + Add Book
+                </button>
+                <button
+                    onClick={() => navigate('/roll')}
+                    className="flex-1 glass py-2.5 rounded-xl text-sm font-semibold text-white/80"
+                >
+                    🎲 Roll from Shelf
+                </button>
+            </div>
+
+            {filteredBooks.length === 0 ? (
+                <p className="text-white/30 text-sm text-center mt-16">Your shelf is empty. Add a book to get started!</p>
+            ) : (
+                <div className="grid grid-cols-2 gap-3">
+                    {filteredBooks.map(book => (
+                        <div key={book.id} className="glass rounded-2xl overflow-hidden flex flex-col">
+                            {/* Cover */}
+                            <div className="relative w-full aspect-[2/3]">
+                                {book.cover_i ? (
+                                    <img
+                                        src={`https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`}
+                                        alt="cover"
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-white"
+                                         style={{ background: TILE_COLOURS[book.title.charCodeAt(0) % TILE_COLOURS.length] }}>
+                                         <span className="text-white font-bold text-sm leading-tight line-clamp-4">
+                                            {book.title}
+                                         </span>
+                                    </div>
+                                )}
+                                <button
+                                    onClick={() => handleDelete(book.id)}
+                                    className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs"
+                                    style={{ background: 'rgba(0,0,0,0.5)' }}
+                                >
+                                    ×
+                                </button>
+                            </div>
+
+                            {/* Info */}
+                            <div className="p-3 flex flex-col flex-1">
+                                <h3 className="font-semibold text-white text-sm leading-tight mb-0.5 line-clamp-2">{book.title}</h3>
+                                <p className="text-white/40 text-xs mb-2">{book.author}</p>
+                                <div className="mt-auto space-y-1 text-xs mb-3">
+                                    {book.page_count && (
+                                        <div className="flex justify-between">
+                                            <span className="text-white/30">Pages</span>
+                                            <span className="text-white/60">{book.page_count}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between">
+                                        <span className="text-white/30">Roll</span>
+                                        <span className="text-white/60">{book.roll_eligible ? 'Yes' : 'No'}</span>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => handleStartReading(book)}
+                                    className="w-full py-1.5 rounded-lg text-xs font-semibold text-white"
+                                    style={{ background: 'rgba(232,104,42,0.3)', border: '1px solid rgba(232,104,42,0.5)' }}
+                                >
+                                    Start Reading
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Add Book Modal */}
+            {showModal && createPortal(
+                <div className="fixed inset-0 flex flex-col justify-end sm:justify-center items-center z-50"
+                     style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
+                    <div className="w-full sm:max-w-lg flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
+                         style={{ height: '90vh', background: 'rgba(20,25,40,0.95)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div className="p-4 flex items-center justify-between shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                            <h2 className="font-semibold text-white">Add Books</h2>
+                            <button onClick={() => { setShowModal(false); setSearchResults([]); setSearchQuery(''); setSelectedBooks([]) }}
+                                    className="text-white/40 hover:text-white text-xl">×</button>
+                        </div>
+                        <div className="p-4 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                            <div className="flex gap-2">
+                                <input
+                                    className="flex-1 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 outline-none"
+                                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+                                    placeholder="Search by title or author..."
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                                />
+                                <button onClick={handleSearch}
+                                        className="px-4 py-2 rounded-xl text-sm font-semibold text-white shrink-0"
+                                        style={{ background: '#E8682A' }}>
+                                    {searching ? '...' : 'Search'}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="overflow-y-auto flex-1 p-4 space-y-2">
+                            {searchResults.length === 0 && !searching && (
+                                <p className="text-white/30 text-sm text-center py-8">Search for books to add to your shelf</p>
+                            )}
+                            {searchResults.map((result, i) => {
+                                const ownedEntry = existingTitles.find(b => b.title === result.title?.toLowerCase())
+                                const alreadyOwned = !!ownedEntry
+                                return (
+                                    <div
+                                        key={result.key || i}
+                                        onClick={() => !alreadyOwned && toggleSelect(result)}
+                                        className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                                            alreadyOwned ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                                        }`}
+                                        style={{
+                                            background: isSelected(result) ? 'rgba(232,104,42,0.15)' : 'rgba(255,255,255,0.04)',
+                                            border: isSelected(result) ? '1px solid rgba(232,104,42,0.5)' : '1px solid rgba(255,255,255,0.06)'
+                                        }}
+                                    >
+                                        {result.cover_i ? (
+                                            <img src={`https://covers.openlibrary.org/b/id/${result.cover_i}-S.jpg`}
+                                                 alt="cover" className="w-10 h-14 object-cover rounded" />
+                                        ) : (
+                                            <CoverTile title={result.title || '?'} size="sm" />
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-medium text-sm text-white truncate">{result.title}</p>
+                                            <p className="text-xs text-white/40">{result.author_name?.[0] || 'Unknown Author'}</p>
+                                            {result.number_of_pages_median && (
+                                                <p className="text-xs text-white/30">{result.number_of_pages_median} pages</p>
+                                            )}
+                                            {alreadyOwned && (
+                                                <p className="text-xs font-medium mt-0.5" style={{ color: '#E8682A' }}>
+                                                    Already in {ownedEntry.status === 'Shelf' ? 'your Shelf' : ownedEntry.status === 'Table' ? 'The Table' : 'your Library'}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center"
+                                             style={{
+                                                 background: isSelected(result) ? '#E8682A' : 'transparent',
+                                                 borderColor: isSelected(result) ? '#E8682A' : 'rgba(255,255,255,0.2)'
+                                             }}>
+                                            {isSelected(result) && <span className="text-white text-xs">✓</span>}
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                        {selectedBooks.length > 0 && (
+                            <div className="p-4 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                                <button onClick={handleAddSelected}
+                                        className="w-full py-3 rounded-xl text-sm font-semibold text-white"
+                                        style={{ background: '#E8682A' }}>
+                                    Add {selectedBooks.length} book{selectedBooks.length !== 1 ? 's' : ''} to Shelf
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Start Reading Modal */}
+            {startModal && (
+                <div className="fixed inset-0 flex items-end sm:items-center justify-center z-50 p-4"
+                     style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
+                    <div className="w-full max-w-lg rounded-2xl overflow-hidden"
+                         style={{ background: 'rgba(20,25,40,0.95)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div className="p-4 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                            <h2 className="font-semibold text-white">Start Reading</h2>
+                            <button onClick={() => setStartModal(null)} className="text-white/40 hover:text-white text-xl">×</button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <p className="text-white/60 text-sm">Starting <span className="text-white font-semibold">{startModal.title}</span></p>
+                            <div>
+                                <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-2">Start date</label>
+                                <input
+                                    type="date"
+                                    className="w-full rounded-xl px-3 py-2 text-sm text-white outline-none"
+                                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+                                    value={startDate}
+                                    onChange={e => setStartDate(e.target.value)}
+                                />
+                            </div>
+                            <button onClick={confirmStart}
+                                    className="w-full py-3 rounded-xl text-sm font-semibold text-white"
+                                    style={{ background: '#E8682A' }}>
+                                Start Reading
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
+
+export default Shelf
