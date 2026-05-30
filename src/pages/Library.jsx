@@ -34,6 +34,7 @@ function Library() {
     const [confirmModal, setConfirmModal] = useState(null)
     const [detailBook, setDetailBook] = useState(null)
     const [sortBy, setSortBy] = useState('completed')
+    const [sortDirection, setSortDirection] = useState('desc')
 
     useEffect(() => {
         async function load() {
@@ -65,10 +66,12 @@ function Library() {
             b.author.toLowerCase().includes(filterQuery.toLowerCase())
         )
         .sort((a, b) => {
-            if (sortBy === 'title') return a.title.localeCompare(b.title)
-            if (sortBy === 'pages') return (b.page_count || 0) - (a.page_count || 0)
-            if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0)
-            return new Date(b.completed_date) - new Date(a.completed_date)
+            let result = 0
+            if (sortBy === 'title') result = a.title.localeCompare(b.title)
+            else if (sortBy === 'pages') result = (a.page_count || 0) - (b.page_count || 0)
+            else if (sortBy === 'genre') result = (a.genre || '').localeCompare(b.genre || '')
+            else result = new Date(a.added_to_shelf_date) - new Date(b.added_to_shelf_date)
+            return sortDirection === 'asc' ? result : -result
         })
 
     return (
@@ -78,11 +81,13 @@ function Library() {
                 <SortControl
                     value={sortBy}
                     onChange={setSortBy}
+                    direction={sortDirection}
+                    onDirectionChange={setSortDirection}
                     options={[
-                        { value: 'completed', label: 'Date completed' },
+                        { value: 'added', label: 'Date added' },
                         { value: 'title', label: 'A–Z' },
                         { value: 'pages', label: 'Page count' },
-                        { value: 'rating', label: 'Rating' },
+                        { value: 'genre', label: 'Genre' },
                     ]}
                 />
             </div>

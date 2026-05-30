@@ -33,6 +33,16 @@ function cleanGenre(subjects) {
     return clean || null
 }
 
+function useDebounce(value, delay) {
+    const [debounced, setDebounced] = useState(value)
+    useEffect(() => {
+        const timer = setTimeout(() => setDebounced(value), delay)
+        return () => clearTimeout(timer)
+    }, [value, delay])
+    return debounced
+}
+
+
 function Shelf() {
     const [books, setBooks] = useState([])
     const [searchQuery, setSearchQuery] = useState('')
@@ -46,10 +56,18 @@ function Shelf() {
     const [existingTitles, setExistingTitles] = useState([])
     const navigate = useNavigate()
     const [searchPage, setSearchPage] = useState(1)
-    const [totalResults, setTotalResults] = useState(0)
+    const [totalResults, setTotalResults] = useState(null)
     const [confirmModal, setConfirmModal] = useState(null)
     const [detailBook, setDetailBook] = useState(null)
     const [sortBy, setSortBy] = useState('added')
+    const [sortDirection, setSortDirection] = useState('desc')
+    const debouncedSearch = useDebounce(searchQuery, 600)
+
+    useEffect(() => {
+        if (debouncedSearch.trim().length > 2) {
+            handleSearch(1)
+        }
+    }, [debouncedSearch])
 
     async function loadBooks() {
         const rows = await getBooksByStatus('Shelf')
@@ -65,7 +83,7 @@ function Shelf() {
         if (p === 1) {
             setSelectedBooks([])
             setSearchResults([])
-            setTotalResults(0)
+            setTotalResults(0)  // ← change this to 0 not null
         }
         const titles = await getAllBookTitles()
         setExistingTitles(titles)
@@ -76,7 +94,7 @@ function Shelf() {
                 `https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}&limit=10&offset=${offset}&fields=key,title,author_name,number_of_pages_median,subject,cover_i,first_publish_year`
             )
             const data = await res.json()
-            setTotalResults(data.numFound || 0)
+            setTotalResults(data.numFound ?? 0)
             if (p === 1) {
                 setSearchResults(data.docs || [])
             } else {
@@ -166,10 +184,12 @@ function Shelf() {
             : books
     )
         .sort((a, b) => {
-            if (sortBy === 'title') return a.title.localeCompare(b.title)
-            if (sortBy === 'pages') return (b.page_count || 0) - (a.page_count || 0)
-            if (sortBy === 'genre') return (a.genre || '').localeCompare(b.genre || '')
-            return new Date(b.added_to_shelf_date) - new Date(a.added_to_shelf_date)
+            let result = 0
+            if (sortBy === 'title') result = a.title.localeCompare(b.title)
+            else if (sortBy === 'pages') result = (a.page_count || 0) - (b.page_count || 0)
+            else if (sortBy === 'genre') result = (a.genre || '').localeCompare(b.genre || '')
+            else result = new Date(a.added_to_shelf_date) - new Date(b.added_to_shelf_date)
+            return sortDirection === 'asc' ? result : -result
         })
 
     return (
@@ -179,6 +199,8 @@ function Shelf() {
                 <SortControl
                     value={sortBy}
                     onChange={setSortBy}
+                    direction={sortDirection}
+                    onDirectionChange={setSortDirection}
                     options={[
                         { value: 'added', label: 'Date added' },
                         { value: 'title', label: 'A–Z' },
@@ -245,12 +267,25 @@ function Shelf() {
                                 >
                                     ×
                                 </button>
+                                {book.current_page > 0 && book.page_count > 0 && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-1"
+                                         style={{ background: 'rgba(0,0,0,0.3)' }}>
+                                        <div className="h-full transition-all"
+                                             style={{
+                                                 width: `${Math.min(100, Math.round((book.current_page / book.page_count) * 100))}%`,
+                                                 background: '#E8682A'
+                                             }} />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Info */}
                             <div className="p-3 flex flex-col" style={{ minHeight: '120px' }}>
                                 <h3 className="font-semibold text-white text-sm leading-tight mb-0.5 line-clamp-2">{book.title}</h3>
-                                <p className="text-white/40 text-xs mb-2">{book.author}</p>
+                                <p className="text-white/40 text-xs">{book.author}</p>
+                                {book.genre && !book.genre.includes(':') && !book.genre.includes('=') && (
+                                    <p className="text-xs mb-2 mt-0.5" style={{ color: '#E8682A' }}>{book.genre}</p>
+                                )}
                                 <div className="mt-auto space-y-1 text-xs mb-3">
                                     {book.page_count && (
                                         <div className="flex justify-between">
@@ -354,7 +389,7 @@ function Shelf() {
                                 )
                             })}
                             {/* No results */}
-                            {!searching && searchResults.length === 0 && searchQuery && (
+                            {!searching && searchResults.length === 0 && searchQuery.trim().length > 0 && totalResults === 0 && (
                                 <div className="text-center py-8 space-y-2">
                                     <p className="text-4xl">🔍</p>
                                     <p className="text-white/40 text-sm">No results for "{searchQuery}"</p>

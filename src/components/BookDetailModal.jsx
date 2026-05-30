@@ -42,14 +42,19 @@ function BookDetailModal({ book, onClose, onUpdate, extraActions }) {
 
     return createPortal(
         <div className="fixed inset-0 flex flex-col justify-end sm:justify-center items-center z-50"
-             style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
+             style={{
+                 background: 'rgba(0,0,0,0.7)',
+                 backdropFilter: 'blur(8px)',
+                 padding: '0 8px',
+                 paddingTop: 'env(safe-area-inset-top)'
+             }}>
             <div className="w-full sm:max-w-lg flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
                  style={{
                      maxHeight: '90vh',
-                     height: '90vh',
                      background: 'rgba(20,25,40,0.98)',
                      border: '1px solid rgba(255,255,255,0.1)',
-                     paddingBottom: 'env(safe-area-inset-bottom)'
+                     margin: '0 8px',
+                     marginTop: 'env(safe-area-inset-top)',
                  }}>
 
                 {/* Header */}
