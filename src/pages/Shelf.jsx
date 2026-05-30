@@ -58,36 +58,36 @@ function Shelf() {
 
     useEffect(() => { loadBooks() }, [])
 
-    async function handleSearch(page = 1) {
+    async function handleSearch(page) {
+        const p = Number.isFinite(page) ? page : 1
         if (!searchQuery.trim()) return
         setSearching(true)
-        if (page === 1) {
+        if (p === 1) {
             setSelectedBooks([])
             setSearchResults([])
-            setSearchPage(1)
             setTotalResults(0)
         }
         const titles = await getAllBookTitles()
         setExistingTitles(titles)
         try {
-            const offset = (page - 1) * 10
+            const offset = (p - 1) * 10
+            console.log('searching page:', p, 'offset:', offset)
             const res = await fetch(
                 `https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}&limit=10&offset=${offset}&fields=key,title,author_name,number_of_pages_median,subject,cover_i,first_publish_year`
             )
             const data = await res.json()
             setTotalResults(data.numFound || 0)
-            if (page === 1) {
+            if (p === 1) {
                 setSearchResults(data.docs || [])
             } else {
                 setSearchResults(prev => [...prev, ...(data.docs || [])])
             }
-            setSearchPage(page)
+            setSearchPage(p)
         } catch (e) {
             alert('Search failed. Please try again.')
         }
         setSearching(false)
     }
-
     function toggleSelect(result) {
         setSelectedBooks(prev => {
             const exists = prev.find(b => b.key === result.key)
@@ -299,7 +299,7 @@ function Shelf() {
                                     onKeyUp={e => e.key === 'Enter' && handleSearch()}
                                     enterKeyHint="search"
                                 />
-                                <button onClick={handleSearch}
+                                <button onClick={() => handleSearch(1)}
                                         className="px-4 py-2 rounded-xl text-sm font-semibold text-white shrink-0"
                                         style={{ background: '#E8682A' }}>
                                     {searching ? '...' : 'Search'}
@@ -365,7 +365,7 @@ function Shelf() {
                             {/* Load more */}
                             {searchResults.length > 0 && searchResults.length < totalResults && (
                                 <button
-                                    onClick={() => handleSearch(searchPage + 1)}
+                                    onClick={() => handleSearch(searchResults.length / 10 + 1)}
                                     disabled={searching}
                                     className="w-full py-2.5 rounded-xl text-sm font-medium text-white/60 glass mt-2"
                                 >
