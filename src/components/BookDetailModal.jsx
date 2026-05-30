@@ -1,11 +1,16 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { updateBook } from '../db/db'
+import { db } from '../db/db'
 
 function BookDetailModal({ book, onClose, onUpdate, extraActions }) {
     const [rollEligible, setRollEligible] = useState(book.roll_eligible)
     const [notes, setNotes] = useState(book.notes || '')
-    const [genre, setGenre] = useState(book.genre || '')
+    const [genre, setGenre] = useState(book.genre?.includes(':') || book.genre?.includes('=') ? '' : (book.genre || ''))
+    const [rating, setRating] = useState(book.rating || 0)
+    const [hoverRating, setHoverRating] = useState(0)
+    const [startedDate, setStartedDate] = useState(book.started_date?.split('T')[0] || '')
+    const [completedDate, setCompletedDate] = useState(book.completed_date?.split('T')[0] || '')
     const [saving, setSaving] = useState(false)
 
     function formatDate(dateStr) {
@@ -24,6 +29,20 @@ function BookDetailModal({ book, onClose, onUpdate, extraActions }) {
             is_unreleased: book.is_unreleased,
             is_standalone: book.is_standalone,
         })
+        // Update dates and rating separately
+        await db.query(
+            `UPDATE books SET 
+        rating = $1,
+        started_date = $2,
+        completed_date = $3
+       WHERE id = $4`,
+            [
+                rating || null,
+                startedDate || null,
+                completedDate || null,
+                book.id
+            ]
+        )
         setSaving(false)
         onUpdate()
         onClose()
@@ -43,6 +62,7 @@ function BookDetailModal({ book, onClose, onUpdate, extraActions }) {
                 </div>
 
                 <div className="overflow-y-auto flex-1">
+
                     {/* Cover + title */}
                     <div className="flex gap-4 p-5">
                         {book.cover_i ? (
@@ -69,54 +89,28 @@ function BookDetailModal({ book, onClose, onUpdate, extraActions }) {
                         </div>
                     </div>
 
-                    {/* Dates */}
-                    <div className="px-5 pb-4 space-y-2">
-                        {book.added_to_shelf_date && (
-                            <div className="flex justify-between text-sm">
-                                <span className="text-white/30">Added</span>
-                                <span className="text-white/60">{formatDate(book.added_to_shelf_date)}</span>
-                            </div>
-                        )}
-                        {book.started_date && (
-                            <div className="flex justify-between text-sm">
-                                <span className="text-white/30">Started</span>
-                                <span className="text-white/60">{formatDate(book.started_date)}</span>
-                            </div>
-                        )}
-                        {book.completed_date && (
-                            <div className="flex justify-between text-sm">
-                                <span className="text-white/30">Completed</span>
-                                <span className="text-white/60">{formatDate(book.completed_date)}</span>
-                            </div>
-                        )}
-                        {book.rating && (
-                            <div className="flex justify-between text-sm">
-                                <span className="text-white/30">Rating</span>
-                                <span style={{ color: '#E8682A' }}>{'★'.repeat(book.rating)}{'☆'.repeat(5 - book.rating)}</span>
-                            </div>
-                        )}
-                    </div>
-
                     {/* Editable fields */}
-                    <div className="px-5 pb-4 space-y-3"
+                    <div className="px-5 pb-4 space-y-4"
                          style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '1rem' }}>
 
+                        {/* Genre */}
                         <div>
                             <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-1">Genre</label>
                             <input
                                 className="w-full rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 outline-none"
-                                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
-                                value={genre.includes(':') || genre.includes('=') ? '' : genre}
+                                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '16px' }}
+                                value={genre}
                                 onChange={e => setGenre(e.target.value)}
                                 placeholder="e.g. Fantasy, Sci-Fi..."
                             />
                         </div>
 
+                        {/* Notes */}
                         <div>
                             <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-1">Notes</label>
                             <textarea
                                 className="w-full rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 outline-none resize-none"
-                                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+                                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '16px' }}
                                 rows={3}
                                 value={notes}
                                 onChange={e => setNotes(e.target.value)}
@@ -124,7 +118,65 @@ function BookDetailModal({ book, onClose, onUpdate, extraActions }) {
                             />
                         </div>
 
-                        {/* Roll eligible toggle */}
+                        {/* Started date — show for Table and Library */}
+                        {(book.status === 'Table' || book.status === 'Library') && (
+                            <div>
+                                <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-1">Started date</label>
+                                <input
+                                    type="date"
+                                    className="w-full rounded-xl px-3 py-2 text-white outline-none"
+                                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '16px', maxWidth: '100%' }}
+                                    value={startedDate}
+                                    onChange={e => setStartedDate(e.target.value)}
+                                />
+                            </div>
+                        )}
+
+                        {/* Completed date — show for Library only */}
+                        {book.status === 'Library' && (
+                            <div>
+                                <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-1">Completed date</label>
+                                <input
+                                    type="date"
+                                    className="w-full rounded-xl px-3 py-2 text-white outline-none"
+                                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '16px', maxWidth: '100%' }}
+                                    value={completedDate}
+                                    onChange={e => setCompletedDate(e.target.value)}
+                                />
+                            </div>
+                        )}
+
+                        {/* Rating — show for Library only */}
+                        {book.status === 'Library' && (
+                            <div>
+                                <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-2">Rating</label>
+                                <div className="flex gap-3">
+                                    {[1, 2, 3, 4, 5].map(star => (
+                                        <button key={star}
+                                                onClick={() => setRating(star === rating ? 0 : star)}
+                                                onMouseEnter={() => setHoverRating(star)}
+                                                onMouseLeave={() => setHoverRating(0)}
+                                                className="text-4xl transition-all"
+                                                style={{
+                                                    color: star <= (hoverRating || rating) ? '#E8682A' : 'rgba(255,255,255,0.15)',
+                                                    filter: star <= (hoverRating || rating) ? 'drop-shadow(0 0 6px rgba(232,104,42,0.6))' : 'none',
+                                                    transform: star <= (hoverRating || rating) ? 'scale(1.2)' : 'scale(1)',
+                                                    transition: 'all 0.15s',
+                                                    fontSize: '16px'
+                                                }}>
+                                            ★
+                                        </button>
+                                    ))}
+                                </div>
+                                {rating > 0 && (
+                                    <p className="text-xs mt-2" style={{ color: '#E8682A' }}>
+                                        {['', 'Terrible', 'Not great', 'Decent', 'Really good', 'Incredible!'][rating]}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Roll eligible toggle — Shelf only */}
                         {book.status === 'Shelf' && (
                             <div className="flex items-center justify-between py-2">
                                 <div>
@@ -134,8 +186,7 @@ function BookDetailModal({ book, onClose, onUpdate, extraActions }) {
                                 <button
                                     onClick={() => setRollEligible(!rollEligible)}
                                     className="w-12 h-6 rounded-full transition-all relative"
-                                    style={{ background: rollEligible ? '#E8682A' : 'rgba(255,255,255,0.15)' }}
-                                >
+                                    style={{ background: rollEligible ? '#E8682A' : 'rgba(255,255,255,0.15)' }}>
                                     <div className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all"
                                          style={{ left: rollEligible ? '1.75rem' : '0.25rem' }} />
                                 </button>
@@ -143,7 +194,7 @@ function BookDetailModal({ book, onClose, onUpdate, extraActions }) {
                         )}
                     </div>
 
-                    {/* Extra actions (passed in per screen) */}
+                    {/* Extra actions */}
                     {extraActions && (
                         <div className="px-5 pb-4 space-y-2"
                              style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '1rem' }}>
