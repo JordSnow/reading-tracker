@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react'
 import { getBooksByStatus, deleteBook } from '../db/db'
+import  ConfirmModal  from '../components/ConfirmModal'
+import BookDetailModal from '../components/BookDetailModal'
+import SortControl from '../components/SortControl'
+
+
 const TILE_COLOURS = [
     'rgba(232,104,42,0.6)', 'rgba(99,102,241,0.6)', 'rgba(20,184,166,0.6)',
     'rgba(236,72,153,0.6)', 'rgba(234,179,8,0.6)', 'rgba(34,197,94,0.6)'
@@ -26,6 +31,9 @@ async function handleDelete(id) {
 function Library() {
     const [books, setBooks] = useState([])
     const [filterQuery, setFilterQuery] = useState('')
+    const [confirmModal, setConfirmModal] = useState(null)
+    const [detailBook, setDetailBook] = useState(null)
+    const [sortBy, setSortBy] = useState('completed')
 
     useEffect(() => {
         async function load() {
@@ -39,15 +47,45 @@ function Library() {
         if (!dateStr) return '—'
         return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     }
+    async function handleDelete(id) {
+        setConfirmModal({
+            message: 'Remove this book from your library?',
+            onConfirm: async () => {
+                await deleteBook(id)
+                setConfirmModal(null)
+                const rows = await getBooksByStatus('Library')
+                setBooks(rows)
+            }
+        })
+    }
 
-    const filteredBooks = books.filter(b =>
-        b.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
-        b.author.toLowerCase().includes(filterQuery.toLowerCase())
-    )
+    const filteredBooks = books
+        .filter(b =>
+            b.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
+            b.author.toLowerCase().includes(filterQuery.toLowerCase())
+        )
+        .sort((a, b) => {
+            if (sortBy === 'title') return a.title.localeCompare(b.title)
+            if (sortBy === 'pages') return (b.page_count || 0) - (a.page_count || 0)
+            if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0)
+            return new Date(b.completed_date) - new Date(a.completed_date)
+        })
 
     return (
         <div className="space-y-4">
-            <h1 className="text-2xl font-bold text-white mb-4">The Library</h1>
+            <div className="flex items-center justify-between mb-4">
+                <h1 className="text-2xl font-bold text-white">The Library</h1>
+                <SortControl
+                    value={sortBy}
+                    onChange={setSortBy}
+                    options={[
+                        { value: 'completed', label: 'Date completed' },
+                        { value: 'title', label: 'A–Z' },
+                        { value: 'pages', label: 'Page count' },
+                        { value: 'rating', label: 'Rating' },
+                    ]}
+                />
+            </div>
 
             <div className="relative">
                 <span className="absolute left-3 top-2.5 text-white/30 text-sm">🔍</span>
@@ -68,7 +106,8 @@ function Library() {
                 <div className="grid grid-cols-2 gap-3">
                     {filteredBooks.map(book => (
                         <div key={book.id} className="glass rounded-2xl overflow-hidden flex flex-col">
-                            <div className="relative w-full aspect-[2/3]">
+                            <div className="relative w-full aspect-[2/3] cursor-pointer"
+                                 onClick={() => setDetailBook(book)}>
                                 {book.cover_i ? (
                                     <img src={`https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`}
                                          alt="cover" className="w-full h-full object-cover" />
@@ -93,7 +132,7 @@ function Library() {
                                     ×
                                 </button>
                             </div>
-                            <div className="p-3">
+                            <div className="p-3 flex flex-col" style={{ minHeight: '120px' }}>
                                 <h3 className="font-semibold text-white text-sm leading-tight mb-0.5 line-clamp-2">{book.title}</h3>
                                 <p className="text-white/40 text-xs mb-2">{book.author}</p>
                                 <div className="space-y-1 text-xs">
@@ -116,6 +155,23 @@ function Library() {
                         </div>
                     ))}
                 </div>
+            )}
+            {confirmModal && (
+                <ConfirmModal
+                    message={confirmModal.message}
+                    onConfirm={confirmModal.onConfirm}
+                    onCancel={() => setConfirmModal(null)}
+                />
+            )}
+            {detailBook && (
+                <BookDetailModal
+                    book={detailBook}
+                    onClose={() => setDetailBook(null)}
+                    onUpdate={async () => {
+                        const rows = await getBooksByStatus('Library')
+                        setBooks(rows)
+                    }}
+                />
             )}
         </div>
     )

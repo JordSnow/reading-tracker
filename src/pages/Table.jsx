@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getBooksByStatus, updateProgress, finishBook } from '../db/db'
+import BookDetailModal from '../components/BookDetailModal'
+import { moveBookToShelf } from '../db/db'
+import ConfirmModal from '../components/ConfirmModal'
 
 const TILE_COLOURS = [
     'rgba(232,104,42,0.6)', 'rgba(99,102,241,0.6)', 'rgba(20,184,166,0.6)',
@@ -15,6 +18,8 @@ function Table() {
     const [rating, setRating] = useState(0)
     const [hoverRating, setHoverRating] = useState(0)
     const navigate = useNavigate()
+    const [showDetail, setShowDetail] = useState(false)
+    const [confirmModal, setConfirmModal] = useState(null)
 
     function today() {
         return new Date().toISOString().split('T')[0]
@@ -41,8 +46,13 @@ function Table() {
         load()
     }
 
+
     async function handleFinish() {
         if (!completedDate) return
+        if (book.started_date && completedDate < book.started_date) {
+            alert('Completed date cannot be before started date.')
+            return
+        }
         await finishBook(book.id, completedDate, rating)
         setShowFinishModal(false)
         navigate('/')
@@ -52,6 +62,7 @@ function Table() {
         if (!book?.page_count || !book?.current_page) return 0
         return Math.min(100, Math.round((book.current_page / book.page_count) * 100))
     }
+
 
     if (!book) {
         return (
@@ -139,6 +150,10 @@ function Table() {
                             Update
                         </button>
                     </div>
+                    <button onClick={() => setShowDetail(true)}
+                            className="w-full glass py-2 rounded-xl text-sm font-medium text-white/60 mt-2">
+                        Edit Details
+                    </button>
                 </div>
             </div>
 
@@ -146,6 +161,18 @@ function Table() {
                     className="w-full py-3 rounded-2xl text-sm font-semibold text-white"
                     style={{ background: '#E8682A' }}>
                 ✓ Mark as Finished
+            </button>
+            <button
+                onClick={() => setConfirmModal({
+                    message: `Move "${book.title}" back to your shelf? Your page progress will be saved.`,
+                    onConfirm: async () => {
+                        await moveBookToShelf(book.id)
+                        setConfirmModal(null)
+                        navigate('/shelf')
+                    }
+                })}
+                className="w-full glass py-3 rounded-2xl text-sm font-medium text-white/40 mt-2">
+                ↩ Put back on Shelf (page progress saved)
             </button>
 
             {/* Finish Modal */}
@@ -160,26 +187,52 @@ function Table() {
                         </div>
                         <div className="p-5 space-y-4">
                             <div>
-                                <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-2">Completed date</label>
-                                <input type="date"
-                                       className="w-full rounded-xl px-3 py-2 text-sm text-white outline-none"
-                                       style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
-                                       value={completedDate}
-                                       onChange={e => setCompletedDate(e.target.value)} />
+                                <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-1">
+                                    Completed date
+                                </label>
+                                {book?.started_date && (
+                                    <p className="text-xs mb-2" style={{ color: '#E8682A' }}>
+                                        Must be on or after {new Date(book.started_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </p>
+                                )}
+                                <input
+                                    type="date"
+                                    min={book?.started_date || ''}
+                                    className="w-full rounded-xl px-3 py-2 text-white outline-none"
+                                    style={{
+                                        background: 'rgba(255,255,255,0.07)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        fontSize: '16px',
+                                        maxWidth: '100%'
+                                    }}
+                                    value={completedDate}
+                                    onChange={e => setCompletedDate(e.target.value)}
+                                />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-2">Rating (optional)</label>
-                                <div className="flex gap-2">
+                                <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-3">Rating (optional)</label>
+                                <div className="flex gap-3 justify-center">
                                     {[1, 2, 3, 4, 5].map(star => (
                                         <button key={star}
-                                                onClick={() => setRating(star)}
+                                                onClick={() => setRating(star === rating ? 0 : star)}
                                                 onMouseEnter={() => setHoverRating(star)}
                                                 onMouseLeave={() => setHoverRating(0)}
-                                                className="text-3xl transition-all">
-                                            <span style={{ color: star <= (hoverRating || rating) ? '#E8682A' : 'rgba(255,255,255,0.15)' }}>★</span>
+                                                className="text-4xl transition-all active:scale-90"
+                                                style={{
+                                                    color: star <= (hoverRating || rating) ? '#E8682A' : 'rgba(255,255,255,0.15)',
+                                                    filter: star <= (hoverRating || rating) ? 'drop-shadow(0 0 6px rgba(232,104,42,0.6))' : 'none',
+                                                    transform: star <= (hoverRating || rating) ? 'scale(1.2)' : 'scale(1)',
+                                                    transition: 'all 0.15s'
+                                                }}>
+                                            ★
                                         </button>
                                     ))}
                                 </div>
+                                {rating > 0 && (
+                                    <p className="text-center text-xs mt-2" style={{ color: '#E8682A' }}>
+                                        {['', 'Terrible', 'Not great', 'Decent', 'Really good', 'Incredible!'][rating]}
+                                    </p>
+                                )}
                             </div>
                             <button onClick={handleFinish}
                                     className="w-full py-3 rounded-xl text-sm font-semibold text-white"
@@ -189,6 +242,21 @@ function Table() {
                         </div>
                     </div>
                 </div>
+            )}
+            {showDetail && book && (
+                <BookDetailModal
+                    book={book}
+                    onClose={() => setShowDetail(false)}
+                    onUpdate={load}
+                />
+            )}
+
+            {confirmModal && (
+                <ConfirmModal
+                    message={confirmModal.message}
+                    onConfirm={confirmModal.onConfirm}
+                    onCancel={() => setConfirmModal(null)}
+                />
             )}
         </div>
     )

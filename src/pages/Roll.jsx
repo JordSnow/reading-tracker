@@ -38,6 +38,7 @@ function Roll() {
     const [finalBook, setFinalBook] = useState(null)
     const spinRef = useRef(null)
     const navigate = useNavigate()
+    const cachedCarousel = useRef([])
 
     useEffect(() => {
         async function load() {
@@ -50,17 +51,20 @@ function Roll() {
     }, [])
 
     function buildCarousel(books) {
-        // Build a long shuffled list for spinning through
-        const shuffled = [...books].sort(() => Math.random() - 0.5)
-        const repeated = []
-        while (repeated.length < 30) {
-            repeated.push(...shuffled)
+        if (cachedCarousel.current.length === 0) {
+            const shuffled = [...books].sort(() => Math.random() - 0.5)
+            const repeated = []
+            while (repeated.length < 30) {
+                repeated.push(...shuffled)
+            }
+            cachedCarousel.current = repeated.slice(0, 30)
         }
-        return repeated.slice(0, 30)
+        return cachedCarousel.current
     }
 
     function handleRoll() {
         if (eligibleBooks.length === 0) return
+        cachedCarousel.current = [] // clear cache so each roll reshuffles
         const carousel = buildCarousel(eligibleBooks)
         setCarouselBooks(carousel)
         setCenterIndex(0)
@@ -222,23 +226,37 @@ function Roll() {
             )}
 
             {phase === 'spinning' && (
-                <button disabled
-                        className="w-full py-4 rounded-2xl text-lg font-bold text-white/50 cursor-not-allowed"
-                        style={{ background: 'rgba(232,104,42,0.3)' }}>
-                    Rolling...
-                </button>
+                <div className="space-y-3">
+                    <button disabled
+                            className="w-full py-4 rounded-2xl text-lg font-bold text-white/50 cursor-not-allowed"
+                            style={{ background: 'rgba(232,104,42,0.3)' }}>
+                        Rolling...
+                    </button>
+                    <button
+                        onClick={() => { clearTimeout(spinRef.current); setPhase('idle'); setFinalBook(null) }}
+                        className="w-full py-2.5 rounded-xl text-sm font-medium text-white/40 glass">
+                        Cancel
+                    </button>
+                </div>
             )}
 
             {phase === 'result' && (
-                <div className="grid grid-cols-2 gap-3">
-                    <button onClick={handleReroll}
-                            className="glass py-3 rounded-xl text-sm font-semibold text-white/80">
-                        🔄 Reroll
-                    </button>
-                    <button onClick={handleAccept}
-                            className="py-3 rounded-xl text-sm font-semibold text-white"
-                            style={{ background: '#E8682A' }}>
-                        ✓ Accept
+                <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                        <button onClick={handleReroll}
+                                className="glass py-3 rounded-xl text-sm font-semibold text-white/80">
+                            🔄 Reroll
+                        </button>
+                        <button onClick={handleAccept}
+                                className="py-3 rounded-xl text-sm font-semibold text-white"
+                                style={{ background: '#E8682A' }}>
+                            ✓ Accept
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => { setPhase('idle'); setFinalBook(null) }}
+                        className="w-full py-2.5 rounded-xl text-sm font-medium text-white/40 glass">
+                        Cancel
                     </button>
                 </div>
             )}

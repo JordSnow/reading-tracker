@@ -13,6 +13,10 @@ function Home() {
             const table = await getBooksByStatus('Table')
             setCurrentBook(table[0] || null)
             const library = await getBooksByStatus('Library')
+            const sorted = [...library].sort((a, b) =>
+                new Date(b.completed_date) - new Date(a.completed_date)
+            )
+            setRecentBooks(sorted.slice(0, 3))
             setRecentBooks(library.slice(0, 3))
             const currentYear = new Date().getFullYear()
             const yearBooks = library.filter(b => {

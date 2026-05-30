@@ -2,6 +2,11 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getBooksByStatus, addBook, deleteBook, startBook, getTableCount, getAllBookTitles } from '../db/db'
 import { createPortal } from 'react-dom'
+import  ConfirmModal  from '../components/ConfirmModal'
+import BookDetailModal from '../components/BookDetailModal'
+import SortControl from '../components/SortControl'
+import Fuse from 'fuse.js'
+
 
 const TILE_COLOURS = [
     'rgba(232,104,42,0.6)', 'rgba(99,102,241,0.6)', 'rgba(20,184,166,0.6)',
@@ -18,6 +23,15 @@ function CoverTile({ title, size = 'md' }) {
         </div>
     )
 }
+function today() {
+    return new Date().toISOString().split('T')[0]
+}
+
+function cleanGenre(subjects) {
+    if (!subjects || subjects.length === 0) return null
+    const clean = subjects.find(s => !s.includes(':') && !s.includes('=') && s.length < 30)
+    return clean || null
+}
 
 function Shelf() {
     const [books, setBooks] = useState([])
@@ -31,10 +45,11 @@ function Shelf() {
     const [selectedBooks, setSelectedBooks] = useState([])
     const [existingTitles, setExistingTitles] = useState([])
     const navigate = useNavigate()
-
-    function today() {
-        return new Date().toISOString().split('T')[0]
-    }
+    const [searchPage, setSearchPage] = useState(1)
+    const [totalResults, setTotalResults] = useState(0)
+    const [confirmModal, setConfirmModal] = useState(null)
+    const [detailBook, setDetailBook] = useState(null)
+    const [sortBy, setSortBy] = useState('added')
 
     async function loadBooks() {
         const rows = await getBooksByStatus('Shelf')
@@ -43,18 +58,28 @@ function Shelf() {
 
     useEffect(() => { loadBooks() }, [])
 
-    async function handleSearch() {
+    async function handleSearch(page = 1) {
         if (!searchQuery.trim()) return
         setSearching(true)
-        setSelectedBooks([])
+        if (page === 1) {
+            setSelectedBooks([])
+            setSearchResults([])
+        }
         const titles = await getAllBookTitles()
         setExistingTitles(titles)
         try {
+            const offset = (page - 1) * 10
             const res = await fetch(
-                `https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}&limit=10&fields=key,title,author_name,number_of_pages_median,subject,cover_i,first_publish_year`
+                `https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}&limit=10&offset=${offset}&fields=key,title,author_name,number_of_pages_median,subject,cover_i,first_publish_year`
             )
             const data = await res.json()
-            setSearchResults(data.docs || [])
+            setTotalResults(data.numFound || 0)
+            if (page === 1) {
+                setSearchResults(data.docs || [])
+            } else {
+                setSearchResults(prev => [...prev, ...(data.docs || [])])
+            }
+            setSearchPage(page)
         } catch (e) {
             alert('Search failed. Please try again.')
         }
@@ -79,8 +104,9 @@ function Shelf() {
                 title: result.title || 'Unknown Title',
                 author: result.author_name?.[0] || 'Unknown Author',
                 page_count: result.number_of_pages_median || null,
-                genre: result.subject?.[0] || null,
+                genre: cleanGenre(result.subject),
                 cover_i: result.cover_i || null,
+                release_year: result.first_publish_year || null,
                 roll_eligible: true,
                 is_unreleased: false,
                 is_standalone: true,
@@ -93,11 +119,15 @@ function Shelf() {
         loadBooks()
     }
 
-    async function handleDelete(id) {
-        if (confirm('Remove this book from your shelf?')) {
-            await deleteBook(id)
-            loadBooks()
-        }
+    function handleDelete(id) {
+        setConfirmModal({
+            message: 'Remove this book from your shelf?',
+            onConfirm: async () => {
+                await deleteBook(id)
+                setConfirmModal(null)
+                loadBooks()
+            }
+        })
     }
 
     async function handleStartReading(book) {
@@ -116,14 +146,45 @@ function Shelf() {
         navigate('/table')
     }
 
-    const filteredBooks = books.filter(b =>
-        b.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
-        b.author.toLowerCase().includes(filterQuery.toLowerCase())
+    const filteredBooks = (
+        filterQuery.trim()
+            ? new Fuse(books, {
+                keys: [
+                    { name: 'title', weight: 3 },
+                    { name: 'author', weight: 2 },
+                    { name: 'series_name', weight: 1.5 },
+                    { name: 'genre', weight: 1 },
+                ],
+                threshold: 0.35,
+                ignoreLocation: true,
+                minMatchCharLength: 2,
+            })
+                .search(filterQuery.trim())
+                .map(result => result.item)
+            : books
     )
+        .sort((a, b) => {
+            if (sortBy === 'title') return a.title.localeCompare(b.title)
+            if (sortBy === 'pages') return (b.page_count || 0) - (a.page_count || 0)
+            if (sortBy === 'genre') return (a.genre || '').localeCompare(b.genre || '')
+            return new Date(b.added_to_shelf_date) - new Date(a.added_to_shelf_date)
+        })
 
     return (
         <div className="space-y-4 relative">
-            <h1 className="text-2xl font-bold text-white mb-4">The Shelf</h1>
+            <div className="flex items-center justify-between mb-4">
+                <h1 className="text-2xl font-bold text-white">The Shelf</h1>
+                <SortControl
+                    value={sortBy}
+                    onChange={setSortBy}
+                    options={[
+                        { value: 'added', label: 'Date added' },
+                        { value: 'title', label: 'A–Z' },
+                        { value: 'pages', label: 'Page count' },
+                        { value: 'genre', label: 'Genre' },
+                    ]}
+                />
+            </div>
 
             <div className="relative">
                 <span className="absolute left-3 top-2.5 text-white/30 text-sm">🔍</span>
@@ -159,7 +220,8 @@ function Shelf() {
                     {filteredBooks.map(book => (
                         <div key={book.id} className="glass rounded-2xl overflow-hidden flex flex-col">
                             {/* Cover */}
-                            <div className="relative w-full aspect-[2/3]">
+                            <div className="relative w-full aspect-[2/3] cursor-pointer"
+                                 onClick={() => setDetailBook(book)}>
                                 {book.cover_i ? (
                                     <img
                                         src={`https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`}
@@ -184,7 +246,7 @@ function Shelf() {
                             </div>
 
                             {/* Info */}
-                            <div className="p-3 flex flex-col flex-1">
+                            <div className="p-3 flex flex-col" style={{ minHeight: '120px' }}>
                                 <h3 className="font-semibold text-white text-sm leading-tight mb-0.5 line-clamp-2">{book.title}</h3>
                                 <p className="text-white/40 text-xs mb-2">{book.author}</p>
                                 <div className="mt-auto space-y-1 text-xs mb-3">
@@ -287,6 +349,32 @@ function Shelf() {
                                     </div>
                                 )
                             })}
+                            {/* No results */}
+                            {!searching && searchResults.length === 0 && searchQuery && (
+                                <div className="text-center py-8 space-y-2">
+                                    <p className="text-4xl">🔍</p>
+                                    <p className="text-white/40 text-sm">No results found for "{searchQuery}"</p>
+                                    <p className="text-white/20 text-xs">Try a different title or author name</p>
+                                </div>
+                            )}
+
+                            {/* Load more */}
+                            {searchResults.length > 0 && searchResults.length < totalResults && (
+                                <button
+                                    onClick={() => handleSearch(searchPage + 1)}
+                                    disabled={searching}
+                                    className="w-full py-2.5 rounded-xl text-sm font-medium text-white/60 glass mt-2"
+                                >
+                                    {searching ? 'Loading...' : `Load more (${totalResults - searchResults.length} remaining)`}
+                                </button>
+                            )}
+
+                            {/* Searching spinner */}
+                            {searching && (
+                                <div className="flex justify-center py-4">
+                                    <div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
+                                </div>
+                            )}
                         </div>
                         {selectedBooks.length > 0 && (
                             <div className="p-4 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
@@ -318,10 +406,14 @@ function Shelf() {
                                 <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-2">Start date</label>
                                 <input
                                     type="date"
-                                    className="w-full rounded-xl px-3 py-2 text-sm text-white outline-none"
-                                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
-                                    value={startDate}
-                                    onChange={e => setStartDate(e.target.value)}
+                                    className="w-full rounded-xl px-3 py-2 text-white outline-none"
+                                    style={{
+                                        background: 'rgba(255,255,255,0.07)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        fontSize: '16px',
+                                        maxWidth: '100%'
+                                    }}
+                                    onChange={e => setCompletedDate(e.target.value)}
                                 />
                             </div>
                             <button onClick={confirmStart}
@@ -332,6 +424,20 @@ function Shelf() {
                         </div>
                     </div>
                 </div>
+            )}
+            {detailBook && (
+                <BookDetailModal
+                    book={detailBook}
+                    onClose={() => setDetailBook(null)}
+                    onUpdate={loadBooks}
+                />
+            )}
+            {confirmModal && (
+                <ConfirmModal
+                    message={confirmModal.message}
+                    onConfirm={confirmModal.onConfirm}
+                    onCancel={() => setConfirmModal(null)}
+                />
             )}
         </div>
     )

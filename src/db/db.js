@@ -27,6 +27,7 @@ export async function initDB() {
         );
 
         ALTER TABLE books ADD COLUMN IF NOT EXISTS cover_i INTEGER;
+        ALTER TABLE books ADD COLUMN IF NOT EXISTS release_year INTEGER;
     `)
 }
 
@@ -45,11 +46,11 @@ export async function addBook(book) {
         `INSERT INTO books (
             title, author, status, page_count, genre, notes,
             roll_eligible, is_unreleased, added_to_shelf_date,
-            is_standalone, series_name, series_number, cover_i
+            is_standalone, series_name, series_number, cover_i, release_year
         ) VALUES (
                      $1, $2, 'Shelf', $3, $4, $5,
                      $6, $7, CURRENT_DATE,
-                     $8, $9, $10, $11
+                     $8, $9, $10, $11, $12
                  ) RETURNING *`,
         [
             book.title,
@@ -63,6 +64,7 @@ export async function addBook(book) {
             book.series_name || null,
             book.series_number || null,
             book.cover_i || null,
+            book.release_year || null,
         ]
     )
     return result.rows[0]
@@ -129,4 +131,24 @@ export async function acceptRoll(id) {
 export async function getAllBookTitles() {
     const result = await db.query(`SELECT title, status FROM books`)
     return result.rows.map(r => ({ title: r.title.toLowerCase(), status: r.status }))
+}
+
+export async function updateBook(id, fields) {
+    await db.query(
+        `UPDATE books SET
+      roll_eligible = $1,
+      notes = $2,
+      genre = $3,
+      is_unreleased = $4,
+      is_standalone = $5
+     WHERE id = $6`,
+        [fields.roll_eligible, fields.notes, fields.genre, fields.is_unreleased, fields.is_standalone, id]
+    )
+}
+
+export async function moveBookToShelf(id) {
+    await db.query(
+        `UPDATE books SET status = 'Shelf', started_date = null, randomly_rolled = false WHERE id = $1`,
+        [id]
+    )
 }
