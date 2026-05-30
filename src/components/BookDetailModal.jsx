@@ -118,29 +118,33 @@ function BookDetailModal({ book, onClose, onUpdate, extraActions }) {
 
                         {/* Started date — show for Table and Library */}
                         {(book.status === 'Table' || book.status === 'Library') && (
-                            <div>
-                                <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-1">Started date</label>
-                                <input
-                                    type="date"
-                                    className="w-full rounded-xl px-3 py-2 text-white outline-none"
-                                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '16px', maxWidth: '100%' }}
-                                    value={startedDate}
-                                    onChange={e => setStartedDate(e.target.value)}
-                                />
-                            </div>
-                        )}
-
-                        {/* Completed date — show for Library only */}
-                        {book.status === 'Library' && (
-                            <div>
-                                <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-1">Completed date</label>
-                                <input
-                                    type="date"
-                                    className="w-full rounded-xl px-3 py-2 text-white outline-none"
-                                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '16px', maxWidth: '100%' }}
-                                    value={completedDate}
-                                    onChange={e => setCompletedDate(e.target.value)}
-                                />
+                            <div className={`grid gap-3 ${book.status === 'Library' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                <div>
+                                    <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-1">
+                                        Started
+                                    </label>
+                                    <input
+                                        type="date"
+                                        className="w-full rounded-xl px-3 py-2 text-white outline-none"
+                                        style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '16px', maxWidth: '100%' }}
+                                        value={startedDate}
+                                        onChange={e => setStartedDate(e.target.value)}
+                                    />
+                                </div>
+                                {book.status === 'Library' && (
+                                    <div>
+                                        <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-1">
+                                            Completed
+                                        </label>
+                                        <input
+                                            type="date"
+                                            className="w-full rounded-xl px-3 py-2 text-white outline-none"
+                                            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '16px', maxWidth: '100%' }}
+                                            value={completedDate}
+                                            onChange={e => setCompletedDate(e.target.value)}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
 

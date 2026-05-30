@@ -10,6 +10,7 @@ body {
     min-height: 100vh;
     min-height: 100dvh;
     padding-top: env(safe-area-inset-top);
+    background-attachment: fixed;
 }
 
 /* Glass card effect */

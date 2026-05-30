@@ -62,14 +62,14 @@ function App() {
 
                 <nav className="fixed bottom-0 left-0 right-0"
                      style={{
-                         paddingBottom: 'env(safe-area-inset-bottom)',
                          background: 'rgba(15, 20, 35, 0.92)',
                          backdropFilter: 'blur(20px)',
                          WebkitBackdropFilter: 'blur(20px)',
                          borderTop: '1px solid rgba(255,255,255,0.08)',
                          borderRadius: '20px 20px 0 0',
                      }}>
-                    <div className="max-w-lg mx-auto flex items-center">
+                    <div className="max-w-lg mx-auto flex items-center"
+                         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
 
                         {/* Home */}
                         <NavLink to="/" end

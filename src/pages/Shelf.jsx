@@ -296,6 +296,8 @@ function Shelf() {
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
                                     onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                                    onKeyUp={e => e.key === 'Enter' && handleSearch()}
+                                    enterKeyHint="search"
                                 />
                                 <button onClick={handleSearch}
                                         className="px-4 py-2 rounded-xl text-sm font-semibold text-white shrink-0"
@@ -393,14 +395,16 @@ function Shelf() {
             )}
 
             {/* Start Reading Modal */}
-            {startModal && (
+            {startModal && createPortal(
                 <div className="fixed inset-0 flex items-end sm:items-center justify-center z-50 p-4"
                      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
                     <div className="w-full max-w-lg rounded-2xl overflow-hidden"
                          style={{ background: 'rgba(20,25,40,0.95)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                        <div className="p-4 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div className="p-4 flex items-center justify-between"
+                             style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                             <h2 className="font-semibold text-white">Start Reading</h2>
-                            <button onClick={() => setStartModal(null)} className="text-white/40 hover:text-white text-xl">×</button>
+                            <button onClick={() => setStartModal(null)}
+                                    className="text-white/40 hover:text-white text-xl">×</button>
                         </div>
                         <div className="p-5 space-y-4">
                             <p className="text-white/60 text-sm">Starting <span className="text-white font-semibold">{startModal.title}</span></p>
@@ -409,13 +413,9 @@ function Shelf() {
                                 <input
                                     type="date"
                                     className="w-full rounded-xl px-3 py-2 text-white outline-none"
-                                    style={{
-                                        background: 'rgba(255,255,255,0.07)',
-                                        border: '1px solid rgba(255,255,255,0.1)',
-                                        fontSize: '16px',
-                                        maxWidth: '100%'
-                                    }}
-                                    onChange={e => setCompletedDate(e.target.value)}
+                                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '16px', maxWidth: '100%' }}
+                                    value={startDate}
+                                    onChange={e => setStartDate(e.target.value)}
                                 />
                             </div>
                             <button onClick={confirmStart}
@@ -425,7 +425,8 @@ function Shelf() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
             {detailBook && (
                 <BookDetailModal
