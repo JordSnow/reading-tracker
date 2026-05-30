@@ -64,6 +64,8 @@ function Shelf() {
         if (page === 1) {
             setSelectedBooks([])
             setSearchResults([])
+            setSearchPage(1)
+            setTotalResults(0)
         }
         const titles = await getAllBookTitles()
         setExistingTitles(titles)
@@ -353,8 +355,8 @@ function Shelf() {
                             {!searching && searchResults.length === 0 && searchQuery && (
                                 <div className="text-center py-8 space-y-2">
                                     <p className="text-4xl">🔍</p>
-                                    <p className="text-white/40 text-sm">No results found for "{searchQuery}"</p>
-                                    <p className="text-white/20 text-xs">Try a different title or author name</p>
+                                    <p className="text-white/40 text-sm">No results for "{searchQuery}"</p>
+                                    <p className="text-white/20 text-xs">Try being more specific — e.g. "Harry Potter" instead of "Harry"</p>
                                 </div>
                             )}
 

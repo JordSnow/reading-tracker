@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { updateBook } from '../db/db'
-import { db } from '../db/db'
 
 function BookDetailModal({ book, onClose, onUpdate, extraActions }) {
     const [rollEligible, setRollEligible] = useState(book.roll_eligible)
@@ -9,8 +8,12 @@ function BookDetailModal({ book, onClose, onUpdate, extraActions }) {
     const [genre, setGenre] = useState(book.genre?.includes(':') || book.genre?.includes('=') ? '' : (book.genre || ''))
     const [rating, setRating] = useState(book.rating || 0)
     const [hoverRating, setHoverRating] = useState(0)
-    const [startedDate, setStartedDate] = useState(book.started_date?.split('T')[0] || '')
-    const [completedDate, setCompletedDate] = useState(book.completed_date?.split('T')[0] || '')
+    const [startedDate, setStartedDate] = useState(
+        book.started_date ? new Date(book.started_date).toISOString().split('T')[0] : ''
+    )
+    const [completedDate, setCompletedDate] = useState(
+        book.completed_date ? new Date(book.completed_date).toISOString().split('T')[0] : ''
+    )
     const [saving, setSaving] = useState(false)
 
     function formatDate(dateStr) {
@@ -28,21 +31,10 @@ function BookDetailModal({ book, onClose, onUpdate, extraActions }) {
             genre,
             is_unreleased: book.is_unreleased,
             is_standalone: book.is_standalone,
+            rating,
+            started_date: startedDate || null,
+            completed_date: completedDate || null,
         })
-        // Update dates and rating separately
-        await db.query(
-            `UPDATE books SET 
-        rating = $1,
-        started_date = $2,
-        completed_date = $3
-       WHERE id = $4`,
-            [
-                rating || null,
-                startedDate || null,
-                completedDate || null,
-                book.id
-            ]
-        )
         setSaving(false)
         onUpdate()
         onClose()
@@ -52,7 +44,13 @@ function BookDetailModal({ book, onClose, onUpdate, extraActions }) {
         <div className="fixed inset-0 flex flex-col justify-end sm:justify-center items-center z-50"
              style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
             <div className="w-full sm:max-w-lg flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
-                 style={{ maxHeight: '90vh', background: 'rgba(20,25,40,0.98)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                 style={{
+                     maxHeight: '90vh',
+                     height: '90vh',
+                     background: 'rgba(20,25,40,0.98)',
+                     border: '1px solid rgba(255,255,255,0.1)',
+                     paddingBottom: 'env(safe-area-inset-bottom)'
+                 }}>
 
                 {/* Header */}
                 <div className="p-4 flex items-center justify-between shrink-0"

@@ -136,13 +136,26 @@ export async function getAllBookTitles() {
 export async function updateBook(id, fields) {
     await db.query(
         `UPDATE books SET
-      roll_eligible = $1,
-      notes = $2,
-      genre = $3,
-      is_unreleased = $4,
-      is_standalone = $5
-     WHERE id = $6`,
-        [fields.roll_eligible, fields.notes, fields.genre, fields.is_unreleased, fields.is_standalone, id]
+                          roll_eligible = $1,
+                          notes = $2,
+                          genre = $3,
+                          is_unreleased = $4,
+                          is_standalone = $5,
+                          rating = $6,
+                          started_date = $7,
+                          completed_date = $8
+         WHERE id = $9`,
+        [
+            fields.roll_eligible,
+            fields.notes,
+            fields.genre,
+            fields.is_unreleased,
+            fields.is_standalone,
+            fields.rating || null,
+            fields.started_date || null,
+            fields.completed_date || null,
+            id
+        ]
     )
 }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { db } from '../db/db'
+import { useState, useEffect, useMemo } from 'react'
 
 function StatCard({ label, value, sub }) {
     return (
@@ -138,7 +139,6 @@ function Stats() {
     const [year, setYear] = useState(new Date().getFullYear())
     const [allBooks, setAllBooks] = useState([])
     const currentYear = new Date().getFullYear()
-    const currentMonth = new Date().getMonth()
     const availableYears = [2023, 2024, 2025, 2026, 2027]
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
 
@@ -158,7 +158,7 @@ function Stats() {
         { key: 'month', label: 'Monthly' },
     ]
 
-    const filteredBooks = (() => {
+    const filteredBooks = useMemo(() => {
         if (tab === 'alltime') return allBooks
         if (tab === 'year') return allBooks.filter(b => {
             if (!b.completed_date) return false
@@ -170,7 +170,7 @@ function Stats() {
             return d.getFullYear() === year && d.getMonth() === selectedMonth
         })
         return allBooks
-    })()
+    }, [tab, year, selectedMonth, allBooks])
 
     const stats = computeStats(filteredBooks)
 
@@ -230,7 +230,7 @@ function Stats() {
                     <select
                         className="flex-1 rounded-xl px-3 py-2.5 text-sm text-white outline-none"
                         style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '16px' }}
-                        value={currentMonth}
+                        value={selectedMonth}
                         onChange={e => setSelectedMonth(parseInt(e.target.value))}
                     >
                         {Array.from({ length: 12 }, (_, i) => (
