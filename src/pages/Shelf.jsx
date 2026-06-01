@@ -188,7 +188,7 @@ function Shelf() {
             if (sortBy === 'title') result = a.title.localeCompare(b.title)
             else if (sortBy === 'pages') result = (a.page_count || 0) - (b.page_count || 0)
             else if (sortBy === 'genre') result = (a.genre || '').localeCompare(b.genre || '')
-            else result = new Date(a.added_to_shelf_date) - new Date(b.added_to_shelf_date)
+            else result = (new Date(a.added_to_shelf_date || 0) - new Date(b.added_to_shelf_date || 0)) || (a.id - b.id)
             return sortDirection === 'asc' ? result : -result
         })
 

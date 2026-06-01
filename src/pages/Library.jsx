@@ -20,21 +20,14 @@ function StarRating({ rating }) {
     )
 }
 
-async function handleDelete(id) {
-    if (confirm('Remove this book from your library?')) {
-        const rows = await getBooksByStatus('Library')
-        setBooks(rows.filter(b => b.id !== id))
-        await deleteBook(id)
-    }
-}
-
 function Library() {
     const [books, setBooks] = useState([])
     const [filterQuery, setFilterQuery] = useState('')
     const [confirmModal, setConfirmModal] = useState(null)
     const [detailBook, setDetailBook] = useState(null)
-    const [sortBy, setSortBy] = useState('completed')
+    const [sortBy, setSortBy] = useState('added')
     const [sortDirection, setSortDirection] = useState('desc')
+    const [filterYear, setFilterYear] = useState('all')
 
     useEffect(() => {
         async function load() {
@@ -60,17 +53,22 @@ function Library() {
         })
     }
 
+    const completedYears = [...new Set(
+        books.map(b => b.completed_date ? new Date(b.completed_date).getFullYear() : null).filter(Boolean)
+    )].sort((a, b) => b - a)
+
     const filteredBooks = books
         .filter(b =>
-            b.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
-            b.author.toLowerCase().includes(filterQuery.toLowerCase())
+            (b.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
+            b.author.toLowerCase().includes(filterQuery.toLowerCase())) &&
+            (filterYear === 'all' || (b.completed_date && new Date(b.completed_date).getFullYear() === Number(filterYear)))
         )
         .sort((a, b) => {
             let result = 0
             if (sortBy === 'title') result = a.title.localeCompare(b.title)
             else if (sortBy === 'pages') result = (a.page_count || 0) - (b.page_count || 0)
             else if (sortBy === 'genre') result = (a.genre || '').localeCompare(b.genre || '')
-            else result = new Date(a.added_to_shelf_date) - new Date(b.added_to_shelf_date)
+            else result = new Date(a.completed_date || 0) - new Date(b.completed_date || 0)
             return sortDirection === 'asc' ? result : -result
         })
 
@@ -84,13 +82,27 @@ function Library() {
                     direction={sortDirection}
                     onDirectionChange={setSortDirection}
                     options={[
-                        { value: 'added', label: 'Date added' },
+                        { value: 'added', label: 'Completed' },
                         { value: 'title', label: 'A–Z' },
                         { value: 'pages', label: 'Page count' },
                         { value: 'genre', label: 'Genre' },
                     ]}
                 />
             </div>
+
+            {completedYears.length > 0 && (
+                <select
+                    value={filterYear}
+                    onChange={e => setFilterYear(e.target.value)}
+                    className="text-xs font-medium text-white/50 rounded-lg px-2 py-1.5 outline-none w-full"
+                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '16px' }}
+                >
+                    <option value="all" style={{ background: '#0d1117' }}>All years</option>
+                    {completedYears.map(y => (
+                        <option key={y} value={y} style={{ background: '#0d1117' }}>{y}</option>
+                    ))}
+                </select>
+            )}
 
             <div className="relative">
                 <span className="absolute left-3 top-2.5 text-white/30 text-sm">🔍</span>
@@ -130,7 +142,7 @@ function Library() {
                                     </div>
                                 )}
                                 <button
-                                    onClick={() => handleDelete(book.id)}
+                                    onClick={e => { e.stopPropagation(); handleDelete(book.id) }}
                                     className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs"
                                     style={{ background: 'rgba(0,0,0,0.5)' }}
                                 >
