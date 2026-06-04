@@ -7,4 +7,4 @@ export const TILE_COLOURS = [
   "rgba(34,197,94,0.6)",
 ];
 
-export const GOOGLE_BOOKS_KEY = "AIzaSyB9coWbfmTlovkFLMnvXKZmpjn8CYtGqmI";
+export const GOOGLE_BOOKS_KEY = import.meta.env.VITE_GOOGLE_BOOKS_KEY;

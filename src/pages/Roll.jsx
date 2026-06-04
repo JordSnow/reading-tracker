@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { getRollEligibleBooks, acceptRoll, getTableCount } from "../db/db";
+import {
+  getRollEligibleBooks,
+  acceptRoll,
+  getTableCount,
+  getCoverUrl,
+} from "../db/db";
 import confetti from "canvas-confetti";
 import { TILE_COLOURS } from "../constants";
 
@@ -14,9 +19,9 @@ function BookCover({ book, size = "md", dimmed = false }) {
     <div
       className={`${sizes[size]} rounded-2xl overflow-hidden shadow-2xl shrink-0 transition-all duration-300 ${dimmed ? "opacity-40 scale-90" : "opacity-100 scale-100"}`}
     >
-      {book.cover_i ? (
+      {getCoverUrl(book) ? (
         <img
-          src={`https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`}
+          src={getCoverUrl(book)}
           alt="cover"
           className="w-full h-full object-cover"
         />
@@ -40,10 +45,11 @@ function BookCover({ book, size = "md", dimmed = false }) {
 function Roll() {
   const [eligibleBooks, setEligibleBooks] = useState([]);
   const [hasTableBook, setHasTableBook] = useState(false);
-  const [phase, setPhase] = useState("idle"); // idle | spinning | result | accepted
+  const [phase, setPhase] = useState("idle");
   const [carouselBooks, setCarouselBooks] = useState([]);
   const [centerIndex, setCenterIndex] = useState(0);
   const [finalBook, setFinalBook] = useState(null);
+  const [filterGenre, setFilterGenre] = useState(null);
   const spinRef = useRef(null);
   const navigate = useNavigate();
   const cachedCarousel = useRef([]);
@@ -58,22 +64,34 @@ function Roll() {
     load();
   }, []);
 
+  const availableGenres = [
+    ...new Set(
+      eligibleBooks
+        .map((b) => b.genre)
+        .filter(
+          (g) => g && !g.includes(":") && !g.includes("=") && g.length < 30,
+        ),
+    ),
+  ].sort();
+
+  const booksToRoll = filterGenre
+    ? eligibleBooks.filter((b) => b.genre === filterGenre)
+    : eligibleBooks;
+
   function buildCarousel(books) {
     if (cachedCarousel.current.length === 0) {
       const shuffled = [...books].sort(() => Math.random() - 0.5);
       const repeated = [];
-      while (repeated.length < 30) {
-        repeated.push(...shuffled);
-      }
+      while (repeated.length < 30) repeated.push(...shuffled);
       cachedCarousel.current = repeated.slice(0, 30);
     }
     return cachedCarousel.current;
   }
 
   function handleRoll() {
-    if (eligibleBooks.length === 0) return;
-    cachedCarousel.current = []; // clear cache so each roll reshuffles
-    const carousel = buildCarousel(eligibleBooks);
+    if (booksToRoll.length === 0) return;
+    cachedCarousel.current = [];
+    const carousel = buildCarousel(booksToRoll);
     setCarouselBooks(carousel);
     setCenterIndex(0);
     setPhase("spinning");
@@ -86,19 +104,15 @@ function Roll() {
       tick++;
       currentIdx = (currentIdx + 1) % carousel.length;
       setCenterIndex(currentIdx);
-
       if (tick < totalTicks) {
-        // Start fast, slow down
         const delay = 80 + Math.pow(tick / totalTicks, 2) * 500;
         spinRef.current = setTimeout(next, delay);
       } else {
-        // Use whatever book is showing at the end of the spin
         const picked = carousel[currentIdx];
         setFinalBook(picked);
         setPhase("result");
       }
     }
-
     spinRef.current = setTimeout(next, 80);
   }
 
@@ -178,7 +192,6 @@ function Roll() {
     );
   }
 
-  // Get 5 visible books centred around centerIndex for the carousel
   const visible =
     phase === "spinning" && carouselBooks.length > 0
       ? [-2, -1, 0, 1, 2].map((offset) => {
@@ -190,7 +203,7 @@ function Roll() {
       : null;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="text-center">
         <h1
           style={{
@@ -203,12 +216,63 @@ function Roll() {
         >
           Random Roll
         </h1>
-        <p className="text-white/30 text-sm mt-1">
-          {eligibleBooks.length} books eligible
+        <p
+          style={{
+            color: "var(--text-muted)",
+            fontSize: "13px",
+            marginTop: "4px",
+          }}
+        >
+          {booksToRoll.length} book{booksToRoll.length !== 1 ? "s" : ""}{" "}
+          eligible
+          {filterGenre && (
+            <span style={{ color: "#E8682A" }}> · {filterGenre}</span>
+          )}
         </p>
       </div>
 
-      {/* Carousel / display area */}
+      {/* Genre filter */}
+      {availableGenres.length > 0 && phase === "idle" && (
+        <div
+          style={{
+            display: "flex",
+            gap: "6px",
+            flexWrap: "wrap",
+            justifyContent: "center",
+          }}
+        >
+          {availableGenres.map((genre) => (
+            <button
+              key={genre}
+              onClick={() =>
+                setFilterGenre(filterGenre === genre ? null : genre)
+              }
+              style={{
+                padding: "4px 10px",
+                borderRadius: "999px",
+                border: "1px solid",
+                borderColor:
+                  filterGenre === genre ? "#E8682A" : "rgba(255,255,255,0.08)",
+                background:
+                  filterGenre === genre
+                    ? "rgba(232,104,42,0.15)"
+                    : "rgba(255,255,255,0.04)",
+                color:
+                  filterGenre === genre ? "#E8682A" : "rgba(255,255,255,0.4)",
+                fontSize: "12px",
+                fontWeight: filterGenre === genre ? 500 : 400,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {genre}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Carousel */}
       <div
         className="relative flex items-center justify-center overflow-hidden"
         style={{ height: 260 }}
@@ -221,7 +285,6 @@ function Roll() {
             </p>
           </div>
         )}
-
         {phase === "spinning" && visible && (
           <div className="flex items-center justify-center gap-3 w-full">
             {visible.map(({ book, offset }) => (
@@ -234,7 +297,6 @@ function Roll() {
             ))}
           </div>
         )}
-
         {phase === "result" && finalBook && (
           <div className="flex flex-col items-center space-y-4">
             <p className="text-white/40 text-xs uppercase tracking-wider">
@@ -245,7 +307,6 @@ function Roll() {
         )}
       </div>
 
-      {/* Book info when result shown */}
       {phase === "result" && finalBook && (
         <div className="text-center">
           <h2 className="text-xl font-bold text-white">{finalBook.title}</h2>
@@ -258,12 +319,15 @@ function Roll() {
         </div>
       )}
 
-      {/* Buttons */}
       {phase === "idle" && (
         <button
           onClick={handleRoll}
+          disabled={booksToRoll.length === 0}
           className="w-full py-4 rounded-2xl text-lg font-bold text-white"
-          style={{ background: "#E8682A" }}
+          style={{
+            background:
+              booksToRoll.length === 0 ? "rgba(232,104,42,0.3)" : "#E8682A",
+          }}
         >
           🎲 Roll!
         </button>

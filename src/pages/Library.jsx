@@ -116,7 +116,7 @@ function Library() {
             color: "#f0efee",
           }}
         >
-          The Library
+          The Library · {books.length}
         </h1>
         <div
           style={{
@@ -273,11 +273,11 @@ function Library() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 items-start">
           {filteredBooks.map((book) => (
             <div
               key={book.id}
-              className="glass rounded-2xl overflow-hidden flex flex-col"
+              className="glass rounded-2xl overflow-hidden flex flex-col h-full"
             >
               <div
                 className="relative w-full aspect-[2/3] cursor-pointer"

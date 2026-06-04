@@ -246,7 +246,7 @@ function Shelf() {
             color: "#f0efee",
           }}
         >
-          The Shelf
+          The Shelf · {books.length}
         </h1>
         <div
           style={{
@@ -393,11 +393,11 @@ function Shelf() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 items-start">
           {filteredBooks.map((book) => (
             <div
               key={book.id}
-              className="glass rounded-2xl overflow-hidden flex flex-col"
+              className="glass rounded-2xl overflow-hidden flex flex-col h-full"
             >
               {/* Cover */}
               <div
