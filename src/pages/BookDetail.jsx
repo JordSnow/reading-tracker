@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getBookById, updateBook, deleteBook } from "../db/db";
+import { getBookById, updateBook, deleteBook, getCoverUrl } from "../db/db";
 import ConfirmModal from "../components/ConfirmModal";
 
 export default function BookDetail() {
@@ -152,10 +152,10 @@ export default function BookDetail() {
             flexShrink: 0,
           }}
         >
-          {book.cover_i ? (
+          {getCoverUrl(book) ? (
             <>
               <img
-                src={`https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`}
+                src={getCoverUrl(book, "L")}
                 alt="cover"
                 style={{
                   width: "100%",
@@ -166,7 +166,7 @@ export default function BookDetail() {
                 }}
               />
               <img
-                src={`https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`}
+                src={getCoverUrl(book)}
                 alt="cover"
                 style={{
                   position: "absolute",

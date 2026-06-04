@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getBooksByStatus } from "../db/db";
+import { getBooksByStatus, getCoverUrl } from "../db/db";
 
 const TILE_COLOURS = [
   "rgba(232,104,42,0.6)",
@@ -64,7 +64,6 @@ function Home() {
 
   return (
     <div className="space-y-4 pb-2">
-      {/* Header */}
       <div className="flex items-center justify-between pt-2 pb-1">
         <h1
           style={{
@@ -85,14 +84,12 @@ function Home() {
         </p>
       </div>
 
-      {/* Currently Reading */}
       {currentBook ? (
         <div
           className="glass rounded-2xl overflow-hidden"
           onClick={() => navigate("/table")}
           style={{ cursor: "pointer" }}
         >
-          {/* Cover hero */}
           <div
             style={{
               position: "relative",
@@ -100,10 +97,10 @@ function Home() {
               overflow: "hidden",
             }}
           >
-            {currentBook.cover_i ? (
+            {getCoverUrl(currentBook, "L") ? (
               <>
                 <img
-                  src={`https://covers.openlibrary.org/b/id/${currentBook.cover_i}-L.jpg`}
+                  src={getCoverUrl(currentBook, "L")}
                   alt="cover"
                   style={{
                     width: "100%",
@@ -113,7 +110,7 @@ function Home() {
                   }}
                 />
                 <img
-                  src={`https://covers.openlibrary.org/b/id/${currentBook.cover_i}-M.jpg`}
+                  src={getCoverUrl(currentBook)}
                   alt="cover"
                   style={{
                     position: "absolute",
@@ -144,7 +141,6 @@ function Home() {
                 <span style={{ fontSize: "48px" }}>📖</span>
               </div>
             )}
-            {/* Currently reading label */}
             <div
               style={{
                 position: "absolute",
@@ -161,8 +157,7 @@ function Home() {
                 Reading
               </span>
             </div>
-            {/* Title overlay */}
-            {currentBook.cover_i && (
+            {getCoverUrl(currentBook) && (
               <div
                 style={{
                   position: "absolute",
@@ -197,9 +192,8 @@ function Home() {
             )}
           </div>
 
-          {/* Progress + meta */}
           <div style={{ padding: "14px 16px" }}>
-            {!currentBook.cover_i && (
+            {!getCoverUrl(currentBook) && (
               <>
                 <p
                   style={{
@@ -297,7 +291,6 @@ function Home() {
         </div>
       )}
 
-      {/* Year stats + shelf count */}
       <div
         style={{
           display: "grid",
@@ -355,7 +348,6 @@ function Home() {
         </div>
       </div>
 
-      {/* Recent reads */}
       {recentBooks.length > 0 && (
         <div className="glass rounded-2xl p-4">
           <div
@@ -404,9 +396,9 @@ function Home() {
                 onClick={() => navigate(`/book/${book.id}`)}
                 style={{ flexShrink: 0, width: "72px", cursor: "pointer" }}
               >
-                {book.cover_i ? (
+                {getCoverUrl(book, "S") ? (
                   <img
-                    src={`https://covers.openlibrary.org/b/id/${book.cover_i}-S.jpg`}
+                    src={getCoverUrl(book, "S")}
                     alt="cover"
                     style={{
                       width: "72px",
@@ -454,7 +446,6 @@ function Home() {
         </div>
       )}
 
-      {/* Roll CTA */}
       <button
         onClick={() => navigate("/roll")}
         className="glass"

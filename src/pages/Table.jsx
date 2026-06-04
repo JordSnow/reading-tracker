@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getBooksByStatus, updateProgress, finishBook } from "../db/db";
-import { moveBookToShelf } from "../db/db";
+import {
+  getBooksByStatus,
+  updateProgress,
+  finishBook,
+  moveBookToShelf,
+  getCoverUrl,
+} from "../db/db";
 import ConfirmModal from "../components/ConfirmModal";
 
 const TILE_COLOURS = [
@@ -129,10 +134,10 @@ function Table() {
       <div className="glass rounded-2xl overflow-hidden">
         {/* Cover banner */}
         <div className="relative h-48 overflow-hidden">
-          {book.cover_i ? (
+          {getCoverUrl(book, "L") ? (
             <>
               <img
-                src={`https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`}
+                src={getCoverUrl(book, "L")}
                 alt="cover"
                 className="w-full h-full object-cover"
               />

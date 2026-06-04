@@ -193,7 +193,6 @@ function Stats() {
   const [tab, setTab] = useState("year");
   const [year, setYear] = useState(new Date().getFullYear());
   const [allBooks, setAllBooks] = useState([]);
-  const currentYear = new Date().getFullYear();
   const availableYears = [2023, 2024, 2025, 2026, 2027];
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
 

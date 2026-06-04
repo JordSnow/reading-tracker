@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getBooksByStatus, deleteBook } from "../db/db";
+import { getBooksByStatus, deleteBook, getCoverUrl } from "../db/db";
 import ConfirmModal from "../components/ConfirmModal";
 import SortControl from "../components/SortControl";
 
@@ -291,9 +291,9 @@ function Library() {
                 className="relative w-full aspect-[2/3] cursor-pointer"
                 onClick={() => navigate(`/book/${book.id}`)}
               >
-                {book.cover_i ? (
+                {getCoverUrl(book) ? (
                   <img
-                    src={`https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`}
+                    src={getCoverUrl(book)}
                     alt="cover"
                     className="w-full h-full object-cover"
                   />

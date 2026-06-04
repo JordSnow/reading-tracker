@@ -7,6 +7,7 @@ import {
   startBook,
   getTableCount,
   getAllBookTitles,
+  getCoverUrl,
 } from "../db/db";
 import { createPortal } from "react-dom";
 import ConfirmModal from "../components/ConfirmModal";
@@ -21,6 +22,8 @@ const TILE_COLOURS = [
   "rgba(234,179,8,0.6)",
   "rgba(34,197,94,0.6)",
 ];
+
+const GOOGLE_BOOKS_KEY = "AIzaSyCrziNe4pfeBNbbnYGox9zn9d3jJgOy-E0";
 
 function CoverTile({ title, size = "md" }) {
   const idx = title.charCodeAt(0) % TILE_COLOURS.length;
@@ -108,14 +111,26 @@ function Shelf() {
     try {
       const offset = (p - 1) * 10;
       const res = await fetch(
-        `https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}&limit=10&offset=${offset}&fields=key,title,author_name,number_of_pages_median,subject,cover_i,first_publish_year`,
+        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchQuery)}&startIndex=${offset}&maxResults=10&key=${GOOGLE_BOOKS_KEY}`,
       );
       const data = await res.json();
-      setTotalResults(data.numFound ?? 0);
+      const books = (data.items || []).map((b) => ({
+        key: `gb_${b.id}`,
+        title: b.volumeInfo?.title,
+        author_name: b.volumeInfo?.authors,
+        number_of_pages_median: b.volumeInfo?.pageCount,
+        subject: b.volumeInfo?.categories,
+        cover_url: b.volumeInfo?.imageLinks?.thumbnail?.replace(
+          "http://",
+          "https://",
+        ),
+        first_publish_year: b.volumeInfo?.publishedDate?.split("-")[0],
+      }));
+      setTotalResults(data.totalItems ?? 0);
       if (p === 1) {
-        setSearchResults(data.docs || []);
+        setSearchResults(books);
       } else {
-        setSearchResults((prev) => [...prev, ...(data.docs || [])]);
+        setSearchResults((prev) => [...prev, ...books]);
       }
     } catch {
       alert("Search failed. Please try again.");
@@ -141,7 +156,8 @@ function Shelf() {
         author: result.author_name?.[0] || "Unknown Author",
         page_count: result.number_of_pages_median || null,
         genre: cleanGenre(result.subject),
-        cover_i: result.cover_i || null,
+        cover_url: result.cover_url || null,
+        cover_i: null,
         release_year: result.first_publish_year || null,
         roll_eligible: true,
         is_unreleased: false,
@@ -398,9 +414,9 @@ function Shelf() {
                 className="relative w-full aspect-[2/3] cursor-pointer"
                 onClick={() => navigate(`/book/${book.id}`)}
               >
-                {book.cover_i ? (
+                {getCoverUrl(book) ? (
                   <img
-                    src={`https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`}
+                    src={getCoverUrl(book)}
                     alt="cover"
                     className="w-full h-full object-cover"
                   />
@@ -495,18 +511,20 @@ function Shelf() {
       {showModal &&
         createPortal(
           <div
-            className="fixed inset-0 flex flex-col justify-end sm:justify-center items-center z-50"
+            className="fixed inset-0 flex items-center justify-center z-50 p-4"
             style={{
               background: "rgba(0,0,0,0.7)",
               backdropFilter: "blur(8px)",
             }}
           >
             <div
-              className="w-full sm:max-w-lg flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
+              className="w-full sm:max-w-lg flex flex-col rounded-2xl overflow-hidden"
               style={{
-                height: "90vh",
+                height: "88vh",
+                maxHeight: "88vh",
                 background: "rgba(26,24,22,0.98)",
                 border: "1px solid rgba(255,255,255,0.07)",
+                margin: "0 8px",
               }}
             >
               <div
@@ -582,9 +600,9 @@ function Shelf() {
                           : "1px solid rgba(255,255,255,0.06)",
                       }}
                     >
-                      {result.cover_i ? (
+                      {result.cover_url ? (
                         <img
-                          src={`https://covers.openlibrary.org/b/id/${result.cover_i}-S.jpg`}
+                          src={result.cover_url}
                           alt="cover"
                           className="w-10 h-14 object-cover rounded"
                         />
@@ -699,7 +717,7 @@ function Shelf() {
       {startModal &&
         createPortal(
           <div
-            className="fixed inset-0 flex items-end sm:items-center justify-center z-50 p-4"
+            className="fixed inset-0 flex items-center justify-center z-50 p-4"
             style={{
               background: "rgba(0,0,0,0.7)",
               backdropFilter: "blur(8px)",

@@ -23,11 +23,13 @@ export async function initDB() {
                                              series_name TEXT,
                                              series_number INTEGER,
                                              is_standalone BOOLEAN DEFAULT true,
-                                             cover_i INTEGER
+                                             cover_i INTEGER,
+                                             cover_url TEXT
         );
 
         ALTER TABLE books ADD COLUMN IF NOT EXISTS cover_i INTEGER;
         ALTER TABLE books ADD COLUMN IF NOT EXISTS release_year INTEGER;
+        ALTER TABLE books ADD COLUMN IF NOT EXISTS cover_url TEXT;
     `);
 }
 
@@ -46,11 +48,11 @@ export async function addBook(book) {
     `INSERT INTO books (
             title, author, status, page_count, genre, notes,
             roll_eligible, is_unreleased, added_to_shelf_date,
-            is_standalone, series_name, series_number, cover_i, release_year
-        ) VALUES (
+            is_standalone, series_name, series_number, cover_i, release_year, cover_url
+                    ) VALUES (
                      $1, $2, 'Shelf', $3, $4, $5,
                      $6, $7, CURRENT_DATE,
-                     $8, $9, $10, $11, $12
+                     $8, $9, $10, $11, $12, $13
                  ) RETURNING *`,
     [
       book.title,
@@ -65,6 +67,7 @@ export async function addBook(book) {
       book.series_number || null,
       book.cover_i || null,
       book.release_year || null,
+      book.cover_url || null,
     ],
   );
   return result.rows[0];
@@ -96,6 +99,13 @@ export async function updateProgress(id, currentPage) {
     currentPage,
     id,
   ]);
+}
+
+export function getCoverUrl(book, size = "M") {
+  if (book.cover_url) return book.cover_url;
+  if (book.cover_i)
+    return `https://covers.openlibrary.org/b/id/${book.cover_i}-${size}.jpg`;
+  return null;
 }
 
 // Finish a book - move to Library
