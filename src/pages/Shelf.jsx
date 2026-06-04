@@ -75,6 +75,8 @@ function Shelf() {
   const [confirmModal, setConfirmModal] = useState(null);
   const [sortBy, setSortBy] = useState("added");
   const [sortDirection, setSortDirection] = useState("desc");
+  const [filterGenre, setFilterGenre] = useState(null);
+  const [showGenres, setShowGenres] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 600);
 
   useEffect(() => {
@@ -184,6 +186,16 @@ function Shelf() {
     navigate("/table");
   }
 
+  const availableGenres = [
+    ...new Set(
+      books
+        .map((b) => b.genre)
+        .filter(
+          (g) => g && !g.includes(":") && !g.includes("=") && g.length < 30,
+        ),
+    ),
+  ].sort();
+
   const filteredBooks = (
     filterQuery.trim()
       ? new Fuse(books, {
@@ -200,23 +212,25 @@ function Shelf() {
           .search(filterQuery.trim())
           .map((result) => result.item)
       : books
-  ).sort((a, b) => {
-    let result;
-    if (sortBy === "title") result = a.title.localeCompare(b.title);
-    else if (sortBy === "pages")
-      result = (a.page_count || 0) - (b.page_count || 0);
-    else if (sortBy === "genre")
-      result = (a.genre || "").localeCompare(b.genre || "");
-    else
-      result =
-        new Date(a.added_to_shelf_date || 0) -
-          new Date(b.added_to_shelf_date || 0) || a.id - b.id;
-    return sortDirection === "asc" ? result : -result;
-  });
+  )
+    .filter((b) => !filterGenre || b.genre === filterGenre)
+    .sort((a, b) => {
+      let result;
+      if (sortBy === "title") result = a.title.localeCompare(b.title);
+      else if (sortBy === "pages")
+        result = (a.page_count || 0) - (b.page_count || 0);
+      else if (sortBy === "genre")
+        result = (a.genre || "").localeCompare(b.genre || "");
+      else
+        result =
+          new Date(a.added_to_shelf_date || 0) -
+            new Date(b.added_to_shelf_date || 0) || a.id - b.id;
+      return sortDirection === "asc" ? result : -result;
+    });
 
   return (
     <div className="space-y-4 relative">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col mb-4">
         <h1
           style={{
             fontFamily: "'DM Sans', sans-serif",
@@ -228,19 +242,108 @@ function Shelf() {
         >
           The Shelf
         </h1>
-        <SortControl
-          value={sortBy}
-          onChange={setSortBy}
-          direction={sortDirection}
-          onDirectionChange={setSortDirection}
-          options={[
-            { value: "added", label: "Date added" },
-            { value: "title", label: "A–Z" },
-            { value: "pages", label: "Page count" },
-            { value: "genre", label: "Genre" },
-          ]}
-        />
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            alignItems: "center",
+            width: "100%",
+            marginTop: "8px",
+          }}
+        >
+          {availableGenres.length > 0 ? (
+            <button
+              onClick={() => setShowGenres(!showGenres)}
+              style={{
+                padding: "5px 10px",
+                borderRadius: "999px",
+                border: "1px solid",
+                borderColor: filterGenre ? "#E8682A" : "rgba(255,255,255,0.08)",
+                background: filterGenre
+                  ? "rgba(232,104,42,0.15)"
+                  : "rgba(255,255,255,0.04)",
+                color: filterGenre ? "#E8682A" : "rgba(255,255,255,0.4)",
+                fontSize: "12px",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Genres
+              {filterGenre && (
+                <span
+                  style={{
+                    fontSize: "10px",
+                    background: "#E8682A",
+                    color: "#fff",
+                    borderRadius: "999px",
+                    padding: "1px 5px",
+                  }}
+                >
+                  {filterGenre}
+                </span>
+              )}
+              <span style={{ fontSize: "10px", opacity: 0.5 }}>
+                {showGenres ? "↑" : "↓"}
+              </span>
+            </button>
+          ) : null}
+          <SortControl
+            value={sortBy}
+            onChange={setSortBy}
+            direction={sortDirection}
+            onDirectionChange={setSortDirection}
+            options={[
+              { value: "added", label: "Date added" },
+              { value: "title", label: "A–Z" },
+              { value: "pages", label: "Page count" },
+            ]}
+          />
+        </div>
       </div>
+
+      {showGenres && availableGenres.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            gap: "6px",
+            flexWrap: "wrap",
+            marginTop: "-8px",
+          }}
+        >
+          {availableGenres.map((genre) => (
+            <button
+              key={genre}
+              onClick={() =>
+                setFilterGenre(filterGenre === genre ? null : genre)
+              }
+              style={{
+                padding: "5px 10px",
+                borderRadius: "999px",
+                border: "1px solid",
+                borderColor:
+                  filterGenre === genre ? "#E8682A" : "rgba(255,255,255,0.08)",
+                background:
+                  filterGenre === genre
+                    ? "rgba(232,104,42,0.15)"
+                    : "rgba(255,255,255,0.04)",
+                color:
+                  filterGenre === genre ? "#E8682A" : "rgba(255,255,255,0.4)",
+                fontSize: "12px",
+                fontWeight: filterGenre === genre ? 500 : 400,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {genre}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="relative">
         <span className="absolute left-3 top-2.5 text-white/30 text-sm">
@@ -276,7 +379,6 @@ function Shelf() {
 
       {filteredBooks.length === 0 ? (
         <div className="text-center mt-16 space-y-3">
-          <p style={{ fontSize: "40px" }}>📚</p>
           <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>
             Your shelf is empty
           </p>

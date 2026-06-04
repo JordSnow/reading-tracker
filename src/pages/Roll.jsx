@@ -100,9 +100,8 @@ function Roll() {
         const delay = 80 + Math.pow(tick / totalTicks, 2) * 500;
         spinRef.current = setTimeout(next, delay);
       } else {
-        // Pick final book
-        const picked =
-          eligibleBooks[Math.floor(Math.random() * eligibleBooks.length)];
+        // Use whatever book is showing at the end of the spin
+        const picked = carousel[currentIdx];
         setFinalBook(picked);
         setPhase("result");
       }

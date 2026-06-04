@@ -37,6 +37,8 @@ function Library() {
   const [sortBy, setSortBy] = useState("added");
   const [sortDirection, setSortDirection] = useState("desc");
   const [filterYear, setFilterYear] = useState("all");
+  const [filterGenre, setFilterGenre] = useState(null);
+  const [showGenres, setShowGenres] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -77,6 +79,16 @@ function Library() {
     ),
   ].sort((a, b) => b - a);
 
+  const availableGenres = [
+    ...new Set(
+      books
+        .map((b) => b.genre)
+        .filter(
+          (g) => g && !g.includes(":") && !g.includes("=") && g.length < 30,
+        ),
+    ),
+  ].sort();
+
   const filteredBooks = books
     .filter(
       (b) =>
@@ -84,7 +96,8 @@ function Library() {
           b.author.toLowerCase().includes(filterQuery.toLowerCase())) &&
         (filterYear === "all" ||
           (b.completed_date &&
-            new Date(b.completed_date).getFullYear() === Number(filterYear))),
+            new Date(b.completed_date).getFullYear() === Number(filterYear))) &&
+        (!filterGenre || b.genre === filterGenre),
     )
     .sort((a, b) => {
       let result;
@@ -101,7 +114,7 @@ function Library() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col mb-4">
         <h1
           style={{
             fontFamily: "'DM Sans', sans-serif",
@@ -113,20 +126,108 @@ function Library() {
         >
           The Library
         </h1>
-        <SortControl
-          value={sortBy}
-          onChange={setSortBy}
-          direction={sortDirection}
-          onDirectionChange={setSortDirection}
-          options={[
-            { value: "added", label: "Completed" },
-            { value: "title", label: "A–Z" },
-            { value: "pages", label: "Page count" },
-            { value: "genre", label: "Genre" },
-          ]}
-        />
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            alignItems: "center",
+            width: "100%",
+            marginTop: "8px",
+          }}
+        >
+          {availableGenres.length > 0 && (
+            <button
+              onClick={() => setShowGenres(!showGenres)}
+              style={{
+                padding: "5px 10px",
+                borderRadius: "999px",
+                border: "1px solid",
+                borderColor: filterGenre ? "#E8682A" : "rgba(255,255,255,0.08)",
+                background: filterGenre
+                  ? "rgba(232,104,42,0.15)"
+                  : "rgba(255,255,255,0.04)",
+                color: filterGenre ? "#E8682A" : "rgba(255,255,255,0.4)",
+                fontSize: "12px",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Genres
+              {filterGenre && (
+                <span
+                  style={{
+                    fontSize: "10px",
+                    background: "#E8682A",
+                    color: "#fff",
+                    borderRadius: "999px",
+                    padding: "1px 5px",
+                  }}
+                >
+                  {filterGenre}
+                </span>
+              )}
+              <span style={{ fontSize: "10px", opacity: 0.5 }}>
+                {showGenres ? "↑" : "↓"}
+              </span>
+            </button>
+          )}
+          <SortControl
+            value={sortBy}
+            onChange={setSortBy}
+            direction={sortDirection}
+            onDirectionChange={setSortDirection}
+            options={[
+              { value: "added", label: "Completed" },
+              { value: "title", label: "A–Z" },
+              { value: "pages", label: "Page count" },
+            ]}
+          />
+        </div>
       </div>
 
+      {showGenres && availableGenres.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            gap: "6px",
+            flexWrap: "wrap",
+            marginTop: "-8px",
+          }}
+        >
+          {availableGenres.map((genre) => (
+            <button
+              key={genre}
+              onClick={() =>
+                setFilterGenre(filterGenre === genre ? null : genre)
+              }
+              style={{
+                padding: "5px 10px",
+                borderRadius: "999px",
+                border: "1px solid",
+                borderColor:
+                  filterGenre === genre ? "#E8682A" : "rgba(255,255,255,0.08)",
+                background:
+                  filterGenre === genre
+                    ? "rgba(232,104,42,0.15)"
+                    : "rgba(255,255,255,0.04)",
+                color:
+                  filterGenre === genre ? "#E8682A" : "rgba(255,255,255,0.4)",
+                fontSize: "12px",
+                fontWeight: filterGenre === genre ? 500 : 400,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {genre}
+            </button>
+          ))}
+        </div>
+      )}
       {completedYears.length > 0 && (
         <select
           value={filterYear}
@@ -138,7 +239,7 @@ function Library() {
             fontSize: "16px",
           }}
         >
-          <option value="all" sstyle={{ background: "#1a1a1a" }}>
+          <option value="all" style={{ background: "#1a1a1a" }}>
             All years
           </option>
           {completedYears.map((y) => (

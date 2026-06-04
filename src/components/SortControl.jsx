@@ -6,37 +6,48 @@ function SortControl({
   onDirectionChange,
 }) {
   return (
-    <div className="flex gap-2 items-center">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="text-xs font-medium text-white/50 rounded-lg px-2 py-1.5 outline-none"
-        style={{
-          background: "rgba(255,255,255,0.07)",
-          border: "1px solid rgba(255,255,255,0.1)",
-          fontSize: "16px",
-        }}
-      >
-        {options.map((o) => (
-          <option
+    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+      {options.map((o) => {
+        const isActive = value === o.value;
+        return (
+          <button
             key={o.value}
-            value={o.value}
-            style={{ background: "#1a1a1a" }}
+            onClick={() => {
+              if (isActive) {
+                onDirectionChange(direction === "asc" ? "desc" : "asc");
+              } else {
+                onChange(o.value);
+              }
+            }}
+            style={{
+              padding: "5px 10px",
+              borderRadius: "999px",
+              border: "1px solid",
+              borderColor: isActive ? "#E8682A" : "rgba(255,255,255,0.08)",
+              background: isActive
+                ? "rgba(232,104,42,0.15)"
+                : "rgba(255,255,255,0.04)",
+              color: isActive ? "#E8682A" : "rgba(255,255,255,0.4)",
+              fontSize: "12px",
+              fontWeight: isActive ? 500 : 400,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+              gap: "3px",
+              transition: "all 0.15s",
+              whiteSpace: "nowrap",
+            }}
           >
             {o.label}
-          </option>
-        ))}
-      </select>
-      <button
-        onClick={() => onDirectionChange(direction === "asc" ? "desc" : "asc")}
-        className="text-white/40 hover:text-white transition-all px-2 py-1.5 rounded-lg text-xs"
-        style={{
-          background: "rgba(255,255,255,0.07)",
-          border: "1px solid rgba(255,255,255,0.1)",
-        }}
-      >
-        {direction === "asc" ? "↑" : "↓"}
-      </button>
+            {isActive && (
+              <span style={{ fontSize: "10px", opacity: 0.8 }}>
+                {direction === "asc" ? "↑" : "↓"}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
