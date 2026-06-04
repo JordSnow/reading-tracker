@@ -13,17 +13,7 @@ import { createPortal } from "react-dom";
 import ConfirmModal from "../components/ConfirmModal";
 import SortControl from "../components/SortControl";
 import Fuse from "fuse.js";
-
-const TILE_COLOURS = [
-  "rgba(232,104,42,0.6)",
-  "rgba(99,102,241,0.6)",
-  "rgba(20,184,166,0.6)",
-  "rgba(236,72,153,0.6)",
-  "rgba(234,179,8,0.6)",
-  "rgba(34,197,94,0.6)",
-];
-
-const GOOGLE_BOOKS_KEY = "AIzaSyCrziNe4pfeBNbbnYGox9zn9d3jJgOy-E0";
+import { TILE_COLOURS, GOOGLE_BOOKS_KEY } from "../constants";
 
 function CoverTile({ title, size = "md" }) {
   const idx = title.charCodeAt(0) % TILE_COLOURS.length;
@@ -104,7 +94,7 @@ function Shelf() {
     if (p === 1) {
       setSelectedBooks([]);
       setSearchResults([]);
-      setTotalResults(0); // ← change this to 0 not null
+      setTotalResults(0);
     }
     const titles = await getAllBookTitles();
     setExistingTitles(titles);

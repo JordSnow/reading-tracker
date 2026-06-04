@@ -1,15 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getBooksByStatus, getCoverUrl } from "../db/db";
-
-const TILE_COLOURS = [
-  "rgba(232,104,42,0.6)",
-  "rgba(99,102,241,0.6)",
-  "rgba(20,184,166,0.6)",
-  "rgba(236,72,153,0.6)",
-  "rgba(234,179,8,0.6)",
-  "rgba(34,197,94,0.6)",
-];
+import { TILE_COLOURS } from "../constants";
 
 function Home() {
   const [currentBook, setCurrentBook] = useState(null);
