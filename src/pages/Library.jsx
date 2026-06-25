@@ -280,7 +280,7 @@ function Library() {
               className="glass rounded-2xl overflow-hidden flex flex-col h-full"
             >
               <div
-                className="relative w-full aspect-[2/3] cursor-pointer"
+                className="book-card relative w-full aspect-[2/3]"
                 onClick={() => navigate(`/book/${book.id}`)}
               >
                 {getCoverUrl(book) ? (
@@ -324,7 +324,7 @@ function Library() {
                 <h3 className="font-semibold text-white text-sm leading-tight mb-0.5 line-clamp-2">
                   {book.title}
                 </h3>
-                <p className="text-white/40 text-xs mb-2">{book.author}</p>
+                <p className="text-white/55 text-xs mb-2">{book.author}</p>
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between">
                     <span className="text-white/30">Completed</span>

@@ -327,7 +327,16 @@ function Roll() {
           style={{
             background:
               booksToRoll.length === 0 ? "rgba(232,104,42,0.3)" : "#E8682A",
+            transition: "transform 100ms ease-out",
+            WebkitTapHighlightColor: "transparent",
           }}
+          onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.97)")}
+          onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+          onTouchStart={(e) =>
+            (e.currentTarget.style.transform = "scale(0.97)")
+          }
+          onTouchEnd={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
           🎲 Roll!
         </button>

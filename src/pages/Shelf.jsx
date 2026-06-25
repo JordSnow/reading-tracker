@@ -58,7 +58,6 @@ function Shelf() {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [filterQuery, setFilterQuery] = useState("");
   const [startModal, setStartModal] = useState(null);
   const [startDate, setStartDate] = useState(today());
   const [selectedBooks, setSelectedBooks] = useState([]);
@@ -66,9 +65,18 @@ function Shelf() {
   const navigate = useNavigate();
   const [totalResults, setTotalResults] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
-  const [sortBy, setSortBy] = useState("added");
-  const [sortDirection, setSortDirection] = useState("desc");
-  const [filterGenre, setFilterGenre] = useState(null);
+  const [sortBy, setSortBy] = useState(
+    () => sessionStorage.getItem("shelf_sortBy") || "added",
+  );
+  const [sortDirection, setSortDirection] = useState(
+    () => sessionStorage.getItem("shelf_sortDirection") || "desc",
+  );
+  const [filterGenre, setFilterGenre] = useState(
+    () => sessionStorage.getItem("shelf_filterGenre") || null,
+  );
+  const [filterQuery, setFilterQuery] = useState(
+    () => sessionStorage.getItem("shelf_filterQuery") || "",
+  );
   const [showGenres, setShowGenres] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 600);
 
@@ -86,6 +94,14 @@ function Shelf() {
     }
     loadBooks();
   }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem("shelf_sortBy", sortBy);
+    sessionStorage.setItem("shelf_sortDirection", sortDirection);
+    if (filterGenre) sessionStorage.setItem("shelf_filterGenre", filterGenre);
+    else sessionStorage.removeItem("shelf_filterGenre");
+    sessionStorage.setItem("shelf_filterQuery", filterQuery);
+  }, [sortBy, sortDirection, filterGenre, filterQuery]);
 
   async function handleSearch(page) {
     const p = Number.isFinite(page) ? page : 1;
@@ -350,6 +366,27 @@ function Shelf() {
           ))}
         </div>
       )}
+      {(filterGenre || filterQuery) && (
+        <button
+          onClick={() => {
+            setFilterGenre(null);
+            setFilterQuery("");
+          }}
+          style={{
+            padding: "4px 10px",
+            borderRadius: "999px",
+            border: "1px solid rgba(232,104,42,0.4)",
+            background: "rgba(232,104,42,0.08)",
+            color: "rgba(232,104,42,0.7)",
+            fontSize: "11px",
+            cursor: "pointer",
+            fontFamily: "inherit",
+            marginTop: "-4px",
+          }}
+        >
+          ✕ clear filters
+        </button>
+      )}
 
       <div className="relative">
         <span className="absolute left-3 top-2.5 text-white/30 text-sm">
@@ -401,7 +438,7 @@ function Shelf() {
             >
               {/* Cover */}
               <div
-                className="relative w-full aspect-[2/3] cursor-pointer"
+                className="book-card relative w-full aspect-[2/3]"
                 onClick={() => navigate(`/book/${book.id}`)}
               >
                 {getCoverUrl(book) ? (
@@ -456,7 +493,7 @@ function Shelf() {
                 <h3 className="font-semibold text-white text-sm leading-tight mb-0.5 line-clamp-2">
                   {book.title}
                 </h3>
-                <p className="text-white/40 text-xs">{book.author}</p>
+                <p className="text-white/55 text-xs">{book.author}</p>
                 {book.genre &&
                   !book.genre.includes(":") &&
                   !book.genre.includes("=") && (

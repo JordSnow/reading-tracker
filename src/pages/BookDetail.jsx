@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getBookById, updateBook, deleteBook, getCoverUrl } from "../db/db";
+import {
+  getBookById,
+  updateBook,
+  deleteBook,
+  getCoverUrl,
+  startBook,
+} from "../db/db";
 import ConfirmModal from "../components/ConfirmModal";
 
 export default function BookDetail() {
@@ -47,6 +53,11 @@ export default function BookDetail() {
     load();
   }, [id, navigate]);
 
+  async function handleStartReading() {
+    await startBook(book.id, new Date().toISOString().split("T")[0]);
+    navigate(-1);
+  }
+
   async function handleSave() {
     setSaving(true);
     await updateBook(book.id, {
@@ -90,7 +101,9 @@ export default function BookDetail() {
           zIndex: 100,
           background: "#1a1a1a",
           transform: visible ? "translateX(0)" : "translateX(100%)",
-          transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)",
+          transition: visible
+            ? "transform 0.25s cubic-bezier(0.32, 0.72, 0, 1)"
+            : "transform 0.2s cubic-bezier(0.4, 0, 1, 1)",
           display: "flex",
           flexDirection: "column",
           paddingTop: "env(safe-area-inset-top)",
@@ -123,7 +136,8 @@ export default function BookDetail() {
               background: "none",
               border: "none",
               cursor: "pointer",
-              padding: "4px 0",
+              padding: "8px 12px", // ← was "4px 0"
+              margin: "-8px -12px", // ← add this, extends tap area without moving visually
             }}
           >
             ← Back
@@ -523,6 +537,27 @@ export default function BookDetail() {
 
         {/* Save */}
         <div style={{ padding: "8px 20px 24px", marginTop: "auto" }}>
+          {/* Start reading */}
+          {book.status === "Shelf" && (
+            <button
+              onClick={handleStartReading}
+              style={{
+                width: "100%",
+                padding: "14px",
+                borderRadius: "14px",
+                border: "2px solid #E8682A",
+                background: "transparent",
+                color: "#E8682A",
+                fontSize: "15px",
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                marginBottom: "10px",
+              }}
+            >
+              Start Reading
+            </button>
+          )}
           <button
             onClick={handleSave}
             disabled={saving}

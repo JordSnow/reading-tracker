@@ -18,6 +18,7 @@
   --charcoal-900: #161412;
 
   --orange: #e8682a;
+  --orange-soft: #f0905c;
   --orange-dim: rgba(232, 104, 42, 0.35);
   --orange-glow: rgba(232, 104, 42, 0.15);
   --orange-subtle: rgba(232, 104, 42, 0.08);
@@ -158,4 +159,37 @@ textarea:focus,
 select:focus {
   outline: none;
   box-shadow: 0 0 0 1.5px var(--orange);
+}
+/* Pulsing dot for "currently reading" */
+@keyframes dot-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(232, 104, 42, 0);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px rgba(232, 104, 42, 0),
+      0 0 0 4px rgba(232, 104, 42, 0.25);
+  }
+}
+
+.dot-pulse {
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+
+/* Card press feedback — applied to .book-card */
+.book-card {
+  transition: transform 120ms ease-out;
+  cursor: pointer;
+}
+
+.book-card:active {
+  transform: scale(0.97);
+}
+
+/* Only apply hover scale on real pointer devices */
+@media (hover: hover) and (pointer: fine) {
+  .book-card:hover {
+    transform: scale(1.01);
+  }
 }

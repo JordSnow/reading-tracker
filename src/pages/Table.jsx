@@ -177,8 +177,12 @@ function Table() {
             {book.randomly_rolled && (
               <>
                 <span className="text-white/30">How picked</span>
-                <span className="text-right text-white/70">
-                  🎲 Randomly rolled
+                <span
+                  className="text-right text-white/70"
+                  style={{ verticalAlign: "middle" }}
+                >
+                  <span style={{ verticalAlign: "middle" }}>🎲</span> Randomly
+                  rolled
                 </span>
               </>
             )}

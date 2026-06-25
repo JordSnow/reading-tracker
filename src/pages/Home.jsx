@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getBooksByStatus, getCoverUrl } from "../db/db";
+import { getBooksByStatus, getCoverUrl, db } from "../db/db";
 import { TILE_COLOURS } from "../constants";
+
+const mono = "'DM Mono', monospace";
 
 function Home() {
   const [currentBook, setCurrentBook] = useState(null);
@@ -52,208 +54,290 @@ function Home() {
     );
   }
 
+  function Stars({ rating }) {
+    if (!rating) return null;
+    return (
+      <div
+        style={{
+          color: "var(--orange)",
+          fontSize: "9px",
+          letterSpacing: "1px",
+        }}
+      >
+        {"★".repeat(rating)}
+        <span style={{ color: "var(--text-faint)" }}>
+          {"★".repeat(Math.max(0, 5 - rating))}
+        </span>
+      </div>
+    );
+  }
+
   const pct = progressPercent(currentBook);
+  const ringCircumference = 2 * Math.PI * 19;
+  const ringOffset = ringCircumference * (1 - pct / 100);
+
+  const today = new Date();
+  const dayName = today
+    .toLocaleDateString("en-GB", { weekday: "long" })
+    .toUpperCase();
+  const dayDate = today
+    .toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+    .toUpperCase();
+
+  async function handleExport() {
+    const result = await db.query("SELECT * FROM books");
+    const json = JSON.stringify(result.rows, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "munin-export.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
-    <div className="space-y-4 pb-2">
-      <div className="flex items-center justify-between pt-2 pb-1">
+    <div className="space-y-3.5 pb-2">
+      {/* Header */}
+      <div className="flex items-baseline justify-between pt-2 pb-1">
         <h1
           style={{
             fontFamily: "'DM Sans', sans-serif",
             fontWeight: 200,
-            fontSize: "28px",
-            letterSpacing: "2px",
-            color: "#f0efee",
+            fontSize: "26px",
+            letterSpacing: "0.32em",
+            color: "var(--text-primary)",
           }}
         >
           munin
         </h1>
-        <p style={{ color: "var(--text-muted)", fontSize: "12px" }}>
-          {new Date().toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "long",
-          })}
+        <p
+          style={{
+            fontFamily: mono,
+            fontSize: "11px",
+            letterSpacing: "0.08em",
+            color: "var(--text-muted)",
+            textAlign: "right",
+            lineHeight: 1.5,
+          }}
+        >
+          {dayName}
+          <br />
+          <span style={{ color: "var(--orange-soft, #f0905c)" }}>
+            {dayDate}
+          </span>
         </p>
       </div>
 
+      {/* Currently reading hero */}
       {currentBook ? (
         <div
-          className="glass rounded-2xl overflow-hidden"
+          className="rounded-2xl overflow-hidden"
           onClick={() => navigate("/table")}
-          style={{ cursor: "pointer" }}
+          style={{ cursor: "pointer", border: "1px solid var(--border)" }}
         >
           <div
             style={{
               position: "relative",
-              height: "160px",
-              overflow: "hidden",
+              minHeight: "190px",
+              display: "flex",
+              alignItems: "flex-end",
+              padding: "16px",
+              background: getCoverUrl(currentBook, "L")
+                ? `linear-gradient(180deg, rgba(20,18,16,0.05) 0%, rgba(13,12,11,0.96) 88%), url(${getCoverUrl(currentBook, "L")})`
+                : `linear-gradient(180deg, rgba(20,18,16,0.1) 0%, rgba(13,12,11,0.96) 88%), linear-gradient(135deg, ${TILE_COLOURS[currentBook.title.charCodeAt(0) % TILE_COLOURS.length]}, #1a1715)`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
             }}
           >
-            {getCoverUrl(currentBook, "L") ? (
-              <>
-                <img
-                  src={getCoverUrl(currentBook, "L")}
-                  alt="cover"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    filter: "brightness(0.5)",
-                  }}
-                />
-                <img
-                  src={getCoverUrl(currentBook)}
-                  alt="cover"
-                  style={{
-                    position: "absolute",
-                    left: "20px",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    height: "120px",
-                    width: "auto",
-                    borderRadius: "6px",
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-                  }}
-                />
-              </>
-            ) : (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  background:
-                    TILE_COLOURS[
-                      currentBook.title.charCodeAt(0) % TILE_COLOURS.length
-                    ],
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <span style={{ fontSize: "48px" }}>📖</span>
-              </div>
-            )}
             <div
               style={{
                 position: "absolute",
-                top: "12px",
-                right: "12px",
-                background: "rgba(232,104,42,0.9)",
-                borderRadius: "999px",
-                padding: "3px 10px",
+                top: "14px",
+                left: "16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontFamily: mono,
+                fontSize: "10.5px",
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: "var(--orange-soft, #f0905c)",
               }}
             >
               <span
-                style={{ color: "#fff", fontSize: "11px", fontWeight: 500 }}
-              >
-                Reading
-              </span>
+                className="dot-pulse"
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: "var(--orange)",
+                  boxShadow: "0 0 0 4px var(--orange-glow)",
+                  display: "inline-block",
+                }}
+              />
+              Currently reading
             </div>
+
             {getCoverUrl(currentBook) && (
+              <img
+                src={getCoverUrl(currentBook)}
+                alt="cover"
+                style={{
+                  width: "92px",
+                  height: "138px",
+                  objectFit: "cover",
+                  borderRadius: "8px",
+                  boxShadow:
+                    "0 18px 36px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.4)",
+                  flexShrink: 0,
+                }}
+              />
+            )}
+
+            <div
+              style={{
+                flex: 1,
+                paddingLeft: "16px",
+                paddingBottom: "4px",
+                minWidth: 0,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "19px",
+                  fontWeight: 500,
+                  color: "#fff",
+                  lineHeight: 1.25,
+                  marginBottom: "4px",
+                }}
+              >
+                {currentBook.title}
+              </p>
+              <p
+                style={{ fontSize: "12.5px", color: "rgba(255,255,255,0.45)" }}
+              >
+                {currentBook.author}
+              </p>
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: "16px 18px 18px",
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+            }}
+          >
+            <div
+              style={{
+                width: "46px",
+                height: "46px",
+                flexShrink: 0,
+                position: "relative",
+              }}
+            >
+              <svg
+                width="46"
+                height="46"
+                viewBox="0 0 46 46"
+                style={{ transform: "rotate(-90deg)" }}
+              >
+                <circle
+                  cx="23"
+                  cy="23"
+                  r="19"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.08)"
+                  strokeWidth="4"
+                />
+                <circle
+                  cx="23"
+                  cy="23"
+                  r="19"
+                  fill="none"
+                  stroke="var(--orange)"
+                  strokeWidth="4"
+                  strokeDasharray={ringCircumference}
+                  strokeDashoffset={ringOffset}
+                  strokeLinecap="round"
+                />
+              </svg>
               <div
                 style={{
                   position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  padding: "12px 16px 0 148px",
-                  background:
-                    "linear-gradient(to top, rgba(0,0,0,0.8), transparent)",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: mono,
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  color: "var(--text-primary)",
                 }}
               >
-                <p
-                  style={{
-                    color: "#fff",
-                    fontSize: "15px",
-                    fontWeight: 600,
-                    lineHeight: 1.3,
-                  }}
-                >
-                  {currentBook.title}
-                </p>
-                <p
-                  style={{
-                    color: "rgba(255,255,255,0.55)",
-                    fontSize: "12px",
-                    marginTop: "2px",
-                  }}
-                >
-                  {currentBook.author}
-                </p>
+                {pct}%
               </div>
-            )}
-          </div>
+            </div>
 
-          <div style={{ padding: "14px 16px" }}>
-            {!getCoverUrl(currentBook) && (
-              <>
-                <p
-                  style={{
-                    color: "#fff",
-                    fontSize: "15px",
-                    fontWeight: 600,
-                    marginBottom: "2px",
-                  }}
-                >
-                  {currentBook.title}
-                </p>
-                <p
-                  style={{
-                    color: "rgba(255,255,255,0.5)",
-                    fontSize: "12px",
-                    marginBottom: "10px",
-                  }}
-                >
-                  {currentBook.author}
-                </p>
-              </>
-            )}
             <div
               style={{
+                flex: 1,
                 display: "flex",
-                justifyContent: "space-between",
-                marginBottom: "6px",
+                flexDirection: "column",
+                gap: "4px",
               }}
             >
-              <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>
-                Started {formatDate(currentBook.started_date)}
-              </span>
-              {currentBook.page_count > 0 && (
-                <span
-                  style={{
-                    color: "#E8682A",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                  }}
-                >
-                  {pct}%
-                </span>
-              )}
-            </div>
-            {currentBook.page_count > 0 && (
               <div
                 style={{
-                  height: "3px",
-                  background: "rgba(255,255,255,0.08)",
-                  borderRadius: "999px",
-                  overflow: "hidden",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontFamily: mono,
+                  fontSize: "12px",
+                  color: "var(--text-muted)",
                 }}
               >
+                <span>Started {formatDate(currentBook.started_date)}</span>
+                {currentBook.page_count > 0 && (
+                  <span style={{ color: "var(--text-secondary)" }}>
+                    {currentBook.current_page || 0} / {currentBook.page_count}{" "}
+                    pages
+                  </span>
+                )}
+              </div>
+              {currentBook.page_count > 0 && (
                 <div
                   style={{
-                    height: "100%",
-                    width: `${pct}%`,
-                    background: "#E8682A",
-                    borderRadius: "999px",
-                    transition: "width 0.3s",
+                    height: "2px",
+                    background: "rgba(255,255,255,0.08)",
+                    borderRadius: "2px",
+                    overflow: "hidden",
                   }}
-                />
-              </div>
-            )}
+                >
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${pct}%`,
+                      background:
+                        "linear-gradient(90deg, var(--orange-soft, #f0905c), var(--orange))",
+                      transition: "width 0.3s",
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       ) : (
-        <div className="glass rounded-2xl p-6" style={{ textAlign: "center" }}>
+        <div
+          className="rounded-2xl p-6"
+          style={{
+            textAlign: "center",
+            border: "1px solid var(--border)",
+            background: "rgba(255,255,255,0.025)",
+          }}
+        >
           <p style={{ fontSize: "32px", marginBottom: "8px" }}>📚</p>
           <p
             style={{
@@ -270,7 +354,7 @@ function Home() {
               padding: "10px 24px",
               borderRadius: "12px",
               border: "none",
-              background: "#E8682A",
+              background: "var(--orange)",
               color: "#fff",
               fontSize: "14px",
               fontWeight: 600,
@@ -283,56 +367,109 @@ function Home() {
         </div>
       )}
 
+      {/* Stat strip */}
       <div
+        className="rounded-2xl"
         style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: "10px",
+          display: "flex",
+          border: "1px solid var(--border)",
+          background: "rgba(255,255,255,0.025)",
+          overflow: "hidden",
         }}
       >
-        <div className="glass rounded-2xl p-4" style={{ textAlign: "center" }}>
-          <p style={{ color: "#f0efee", fontSize: "28px", fontWeight: 700 }}>
+        <div
+          style={{
+            flex: 1,
+            padding: "14px 12px",
+            textAlign: "center",
+            borderRight: "1px solid var(--border)",
+          }}
+        >
+          <p
+            style={{
+              fontFamily: mono,
+              fontSize: "22px",
+              fontWeight: 500,
+              color: "var(--text-primary)",
+              lineHeight: 1,
+            }}
+          >
             {yearStats.books}
           </p>
           <p
             style={{
+              fontSize: "10.5px",
               color: "var(--text-muted)",
-              fontSize: "11px",
-              marginTop: "2px",
+              marginTop: "5px",
+              letterSpacing: "0.04em",
             }}
           >
             read {new Date().getFullYear()}
           </p>
         </div>
-        <div className="glass rounded-2xl p-4" style={{ textAlign: "center" }}>
-          <p style={{ color: "#f0efee", fontSize: "28px", fontWeight: 700 }}>
-            {yearStats.pages > 999
-              ? `${(yearStats.pages / 1000).toFixed(1)}k`
-              : yearStats.pages}
+        <div
+          style={{
+            flex: 1,
+            padding: "14px 12px",
+            textAlign: "center",
+            borderRight: "1px solid var(--border)",
+          }}
+        >
+          <p
+            style={{
+              fontFamily: mono,
+              fontSize: "22px",
+              fontWeight: 500,
+              color: "var(--text-primary)",
+              lineHeight: 1,
+            }}
+          >
+            {yearStats.pages > 999 ? (
+              <>
+                {(yearStats.pages / 1000).toFixed(1)}
+                <span style={{ color: "var(--orange-soft, #f0905c)" }}>k</span>
+              </>
+            ) : (
+              yearStats.pages
+            )}
           </p>
           <p
             style={{
+              fontSize: "10.5px",
               color: "var(--text-muted)",
-              fontSize: "11px",
-              marginTop: "2px",
+              marginTop: "5px",
+              letterSpacing: "0.04em",
             }}
           >
             pages {new Date().getFullYear()}
           </p>
         </div>
         <div
-          className="glass rounded-2xl p-4"
-          style={{ textAlign: "center", cursor: "pointer" }}
+          style={{
+            flex: 1,
+            padding: "14px 12px",
+            textAlign: "center",
+            cursor: "pointer",
+          }}
           onClick={() => navigate("/shelf")}
         >
-          <p style={{ color: "#f0efee", fontSize: "28px", fontWeight: 700 }}>
+          <p
+            style={{
+              fontFamily: mono,
+              fontSize: "22px",
+              fontWeight: 500,
+              color: "var(--text-primary)",
+              lineHeight: 1,
+            }}
+          >
             {shelfCount}
           </p>
           <p
             style={{
+              fontSize: "10.5px",
               color: "var(--text-muted)",
-              fontSize: "11px",
-              marginTop: "2px",
+              marginTop: "5px",
+              letterSpacing: "0.04em",
             }}
           >
             on shelf
@@ -340,23 +477,79 @@ function Home() {
         </div>
       </div>
 
+      {/* Roll CTA */}
+      <div
+        className="rounded-2xl"
+        onClick={() => navigate("/roll")}
+        style={{
+          padding: "18px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          background:
+            "radial-gradient(ellipse at top right, var(--orange-glow), transparent 60%), rgba(232,104,42,0.05)",
+          border: "1px solid var(--orange-dim)",
+          cursor: "pointer",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+          <span
+            style={{
+              fontSize: "14.5px",
+              fontWeight: 500,
+              color: "var(--text-primary)",
+            }}
+          >
+            Roll your next book
+          </span>
+          <span style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
+            {shelfCount} on your shelf
+          </span>
+        </div>
+        <div
+          style={{
+            width: "38px",
+            height: "38px",
+            borderRadius: "10px",
+            background: "var(--orange)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: mono,
+            fontSize: "16px",
+            fontWeight: 500,
+            color: "#1a1a1a",
+            boxShadow: "0 8px 20px rgba(232,104,42,0.35)",
+          }}
+        >
+          🎲
+        </div>
+      </div>
+
+      {/* Recently read */}
       {recentBooks.length > 0 && (
-        <div className="glass rounded-2xl p-4">
+        <div
+          className="rounded-2xl p-4"
+          style={{
+            border: "1px solid var(--border)",
+            background: "rgba(255,255,255,0.025)",
+          }}
+        >
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "12px",
+              alignItems: "baseline",
+              marginBottom: "13px",
             }}
           >
             <p
               style={{
-                color: "var(--text-muted)",
                 fontSize: "11px",
                 fontWeight: 500,
-                letterSpacing: "0.08em",
+                letterSpacing: "0.14em",
                 textTransform: "uppercase",
+                color: "var(--text-secondary)",
               }}
             >
               Recently Read
@@ -364,20 +557,21 @@ function Home() {
             <button
               onClick={() => navigate("/library")}
               style={{
-                color: "#E8682A",
+                fontFamily: mono,
+                color: "var(--orange-soft, #f0905c)",
                 fontSize: "12px",
                 background: "none",
                 border: "none",
                 cursor: "pointer",
               }}
             >
-              See all
+              See all →
             </button>
           </div>
           <div
             style={{
               display: "flex",
-              gap: "10px",
+              gap: "12px",
               overflowX: "auto",
               paddingBottom: "4px",
             }}
@@ -386,25 +580,28 @@ function Home() {
               <div
                 key={book.id}
                 onClick={() => navigate(`/book/${book.id}`)}
-                style={{ flexShrink: 0, width: "72px", cursor: "pointer" }}
+                style={{ flexShrink: 0, width: "68px", cursor: "pointer" }}
               >
                 {getCoverUrl(book, "S") ? (
                   <img
                     src={getCoverUrl(book, "S")}
                     alt="cover"
                     style={{
-                      width: "72px",
-                      height: "100px",
+                      width: "68px",
+                      height: "98px",
                       objectFit: "cover",
                       borderRadius: "6px",
+                      marginBottom: "6px",
+                      boxShadow: "0 6px 16px rgba(0,0,0,0.35)",
                     }}
                   />
                 ) : (
                   <div
                     style={{
-                      width: "72px",
-                      height: "100px",
+                      width: "68px",
+                      height: "98px",
                       borderRadius: "6px",
+                      marginBottom: "6px",
                       background:
                         TILE_COLOURS[
                           book.title.charCodeAt(0) % TILE_COLOURS.length
@@ -413,6 +610,7 @@ function Home() {
                       alignItems: "center",
                       justifyContent: "center",
                       fontSize: "24px",
+                      boxShadow: "0 6px 16px rgba(0,0,0,0.35)",
                     }}
                   >
                     📖
@@ -422,39 +620,40 @@ function Home() {
                   style={{
                     color: "var(--text-secondary)",
                     fontSize: "10px",
-                    marginTop: "4px",
-                    lineHeight: 1.3,
+                    lineHeight: 1.35,
                     overflow: "hidden",
                     display: "-webkit-box",
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: "vertical",
+                    marginBottom: "3px",
                   }}
                 >
                   {book.title}
                 </p>
+                <Stars rating={book.rating} />
               </div>
             ))}
           </div>
         </div>
       )}
-
+      {/* TEMP: migration export */}
       <button
-        onClick={() => navigate("/roll")}
-        className="glass"
+        onClick={handleExport}
         style={{
           width: "100%",
-          padding: "16px",
-          borderRadius: "16px",
-          border: "1px solid rgba(232,104,42,0.3)",
-          color: "rgba(255,255,255,0.7)",
-          fontSize: "14px",
-          fontWeight: 500,
+          padding: "10px",
+          borderRadius: "12px",
+          border: "1px dashed var(--border)",
+          background: "transparent",
+          color: "var(--text-faint)",
+          fontFamily: mono,
+          fontSize: "11px",
+          letterSpacing: "0.08em",
           cursor: "pointer",
-          fontFamily: "inherit",
-          background: "rgba(232,104,42,0.08)",
+          marginBottom: "80px", // ← add this
         }}
       >
-        🎲 Roll Next Book
+        export data ↓
       </button>
     </div>
   );
