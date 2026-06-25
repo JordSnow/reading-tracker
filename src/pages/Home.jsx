@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getBooksByStatus, getCoverUrl, db } from "../db/db";
+import { getBooksByStatus, getCoverUrl } from "../db/db";
 import { TILE_COLOURS } from "../constants";
 
 const mono = "'DM Mono', monospace";
@@ -83,18 +83,6 @@ function Home() {
   const dayDate = today
     .toLocaleDateString("en-GB", { day: "numeric", month: "short" })
     .toUpperCase();
-
-  async function handleExport() {
-    const result = await db.query("SELECT * FROM books");
-    const json = JSON.stringify(result.rows, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "munin-export.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 
   return (
     <div className="space-y-3.5 pb-2">
@@ -636,25 +624,6 @@ function Home() {
           </div>
         </div>
       )}
-      {/* TEMP: migration export */}
-      <button
-        onClick={handleExport}
-        style={{
-          width: "100%",
-          padding: "10px",
-          borderRadius: "12px",
-          border: "1px dashed var(--border)",
-          background: "transparent",
-          color: "var(--text-faint)",
-          fontFamily: mono,
-          fontSize: "11px",
-          letterSpacing: "0.08em",
-          cursor: "pointer",
-          marginBottom: "80px", // ← add this
-        }}
-      >
-        export data ↓
-      </button>
     </div>
   );
 }

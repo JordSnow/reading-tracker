@@ -1,4 +1,4 @@
-import { db } from "../db/db";
+import { getBooksByStatus } from "../db/db";
 import { useState, useEffect, useMemo } from "react";
 
 function StatCard({ label, value, sub }) {
@@ -198,10 +198,8 @@ function Stats() {
 
   useEffect(() => {
     async function load() {
-      const result = await db.query(
-        `SELECT * FROM books WHERE status = 'Library' ORDER BY completed_date DESC`,
-      );
-      setAllBooks(result.rows);
+      const books = await getBooksByStatus("Library");
+      setAllBooks(books);
     }
     load();
   }, []);
