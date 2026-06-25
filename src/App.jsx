@@ -5,6 +5,7 @@ import {
   Routes,
   Route,
   useLocation,
+  Navigate,
 } from "react-router-dom";
 import Home from "./pages/Home";
 import Shelf from "./pages/Shelf";
@@ -12,7 +13,6 @@ import Table from "./pages/Table";
 import Library from "./pages/Library";
 import Roll from "./pages/Roll";
 import Stats from "./pages/Stats";
-import { initDB } from "./db/db";
 import BookDetail from "./pages/BookDetail";
 
 function AnimatedRoutes() {
@@ -29,6 +29,7 @@ function AnimatedRoutes() {
         <Route path="/roll" element={<Roll />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/book/:id" element={<BookDetail />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   );
@@ -205,15 +206,9 @@ function SplashScreen({ isReady }) {
 }
 
 function App() {
-  const [dbReady, setDbReady] = useState(false);
-
-  useEffect(() => {
-    initDB().then(() => setDbReady(true));
-  }, []);
-
   return (
     <>
-      <SplashScreen isReady={dbReady} />
+      <SplashScreen isReady={true} />
       <BrowserRouter>
         <div
           className="min-h-screen"
