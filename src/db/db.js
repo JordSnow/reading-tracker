@@ -1,104 +1,115 @@
-import { PGlite } from "@electric-sql/pglite";
+const API_URL = import.meta.env.VITE_API_URL;
+const API_SECRET = import.meta.env.VITE_API_SECRET;
 
-export const db = new PGlite("idb://reading-tracker");
+async function apiFetch(path, options = {}) {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${API_SECRET}`,
+      ...options.headers,
+    },
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
+}
 
 export async function initDB() {
-  await db.exec(`
-        CREATE TABLE IF NOT EXISTS books (
-                                             id SERIAL PRIMARY KEY,
-                                             title TEXT NOT NULL,
-                                             author TEXT NOT NULL,
-                                             status TEXT NOT NULL DEFAULT 'Shelf',
-                                             page_count INTEGER,
-                                             genre TEXT,
-                                             notes TEXT,
-                                             roll_eligible BOOLEAN DEFAULT true,
-                                             is_unreleased BOOLEAN DEFAULT false,
-                                             added_to_shelf_date DATE,
-                                             started_date DATE,
-                                             current_page INTEGER DEFAULT 0,
-                                             completed_date DATE,
-                                             rating INTEGER,
-                                             randomly_rolled BOOLEAN DEFAULT false,
-                                             series_name TEXT,
-                                             series_number INTEGER,
-                                             is_standalone BOOLEAN DEFAULT true,
-                                             cover_i INTEGER,
-                                             cover_url TEXT
-        );
-
-        ALTER TABLE books ADD COLUMN IF NOT EXISTS cover_i INTEGER;
-        ALTER TABLE books ADD COLUMN IF NOT EXISTS release_year INTEGER;
-        ALTER TABLE books ADD COLUMN IF NOT EXISTS cover_url TEXT;
-    `);
+  // no-op — DB lives in D1 now
 }
 
-// Get all books with a given status
 export async function getBooksByStatus(status) {
-  const result = await db.query(
-    `SELECT * FROM books WHERE status = $1 ORDER BY added_to_shelf_date DESC`,
-    [status],
-  );
-  return result.rows;
-}
-
-// Add a new book to the shelf
-export async function addBook(book) {
-  const result = await db.query(
-    `INSERT INTO books (
-            title, author, status, page_count, genre, notes,
-            roll_eligible, is_unreleased, added_to_shelf_date,
-            is_standalone, series_name, series_number, cover_i, release_year, cover_url
-                    ) VALUES (
-                     $1, $2, 'Shelf', $3, $4, $5,
-                     $6, $7, CURRENT_DATE,
-                     $8, $9, $10, $11, $12, $13
-                 ) RETURNING *`,
-    [
-      book.title,
-      book.author,
-      book.page_count || null,
-      book.genre || null,
-      book.notes || null,
-      book.roll_eligible ?? true,
-      book.is_unreleased ?? false,
-      book.is_standalone ?? true,
-      book.series_name || null,
-      book.series_number || null,
-      book.cover_i || null,
-      book.release_year || null,
-      book.cover_url || null,
-    ],
-  );
-  return result.rows[0];
+  const books = await apiFetch("/books");
+  return books.filter((b) => b.status === status);
 }
 
 export async function getBookById(id) {
-  const result = await db.query("SELECT * FROM books WHERE id = $1", [
-    Number(id),
-  ]);
-  return result.rows[0] || null;
+  return apiFetch(`/books/${id}`);
 }
 
-// Delete a book
+export async function addBook(book) {
+  return apiFetch("/books", {
+    method: "POST",
+    body: JSON.stringify(book),
+  });
+}
+
+export async function updateBook(id, fields) {
+  return apiFetch(`/books/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(fields),
+  });
+}
+
 export async function deleteBook(id) {
-  await db.query(`DELETE FROM books WHERE id = $1`, [id]);
+  return apiFetch(`/books/${id}`, { method: "DELETE" });
 }
 
-// Move a book from Shelf to Table
 export async function startBook(id, startedDate) {
-  await db.query(
-    `UPDATE books SET status = 'Table', started_date = $1 WHERE id = $2`,
-    [startedDate, id],
+  return apiFetch(`/books/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: "Table", started_date: startedDate }),
+  });
+}
+
+export async function updateProgress(id, currentPage) {
+  return apiFetch(`/books/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ current_page: currentPage }),
+  });
+}
+
+export async function finishBook(id, completedDate, rating) {
+  return apiFetch(`/books/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      status: "Library",
+      completed_date: completedDate,
+      rating: rating || null,
+    }),
+  });
+}
+
+export async function moveBookToShelf(id) {
+  return apiFetch(`/books/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      status: "Shelf",
+      started_date: null,
+      randomly_rolled: false,
+    }),
+  });
+}
+
+export async function getTableCount() {
+  const books = await apiFetch("/books");
+  return books.filter((b) => b.status === "Table").length;
+}
+
+export async function getRollEligibleBooks() {
+  const books = await apiFetch("/books");
+  return books.filter(
+    (b) => b.status === "Shelf" && b.roll_eligible && !b.is_unreleased,
   );
 }
 
-// Update current page progress
-export async function updateProgress(id, currentPage) {
-  await db.query(`UPDATE books SET current_page = $1 WHERE id = $2`, [
-    currentPage,
-    id,
-  ]);
+export async function acceptRoll(id) {
+  return apiFetch(`/books/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      status: "Table",
+      started_date: new Date().toISOString().split("T")[0],
+      randomly_rolled: true,
+    }),
+  });
+}
+
+export async function getAllBookTitles() {
+  const books = await apiFetch("/books");
+  return books.map((b) => ({
+    title: b.title.toLowerCase(),
+    status: b.status,
+  }));
 }
 
 export function getCoverUrl(book, size = "M") {
@@ -106,84 +117,4 @@ export function getCoverUrl(book, size = "M") {
   if (book.cover_i)
     return `https://covers.openlibrary.org/b/id/${book.cover_i}-${size}.jpg`;
   return null;
-}
-
-// Finish a book - move to Library
-export async function finishBook(id, completedDate, rating) {
-  await db.query(
-    `UPDATE books SET status = 'Library', completed_date = $1, rating = $2 WHERE id = $3`,
-    [completedDate, rating || null, id],
-  );
-}
-
-// Get count of books currently on the Table
-export async function getTableCount() {
-  const result = await db.query(
-    `SELECT COUNT(*) as count FROM books WHERE status = 'Table'`,
-  );
-  return parseInt(result.rows[0].count);
-}
-
-// Get all roll-eligible books
-export async function getRollEligibleBooks() {
-  const result = await db.query(
-    `SELECT * FROM books 
-     WHERE status = 'Shelf' 
-     AND roll_eligible = true 
-     AND is_unreleased = false`,
-  );
-  return result.rows;
-}
-
-// Accept a roll - move book to Table
-export async function acceptRoll(id) {
-  await db.query(
-    `UPDATE books 
-     SET status = 'Table', 
-         started_date = CURRENT_DATE, 
-         randomly_rolled = true 
-     WHERE id = $1`,
-    [id],
-  );
-}
-
-export async function getAllBookTitles() {
-  const result = await db.query(`SELECT title, status FROM books`);
-  return result.rows.map((r) => ({
-    title: r.title.toLowerCase(),
-    status: r.status,
-  }));
-}
-
-export async function updateBook(id, fields) {
-  await db.query(
-    `UPDATE books SET
-                          roll_eligible = $1,
-                          notes = $2,
-                          genre = $3,
-                          is_unreleased = $4,
-                          is_standalone = $5,
-                          rating = $6,
-                          started_date = $7,
-                          completed_date = $8
-         WHERE id = $9`,
-    [
-      fields.roll_eligible,
-      fields.notes,
-      fields.genre,
-      fields.is_unreleased,
-      fields.is_standalone,
-      fields.rating || null,
-      fields.started_date || null,
-      fields.completed_date || null,
-      id,
-    ],
-  );
-}
-
-export async function moveBookToShelf(id) {
-  await db.query(
-    `UPDATE books SET status = 'Shelf', started_date = null, randomly_rolled = false WHERE id = $1`,
-    [id],
-  );
 }
